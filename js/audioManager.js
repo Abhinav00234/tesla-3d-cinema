@@ -11,6 +11,16 @@ let audioSplitter = null;
 let audioCtx = null;
 let mainVideo = null;
 let currentExternalStartTime = 0;
+let masterVolume = 1;
+
+// While a soundtrack is being fetched the picture is held so both start
+// together. `resume` says whether to start playing once the sound is ready.
+export const hold = { active: false, resume: false };
+let holdTimer = null;
+let driftTimer = null;
+let badDriftChecks = 0;
+let lastResync = 0;
+let resyncCount = 0;
 
 // Generate a synthetic impulse response for the theatre reverb
 function createImpulseResponse(duration, decay, ctx) {
@@ -65,26 +75,31 @@ export function initAudio(camera, scene, video) {
   audioSplitter = ctx.createChannelSplitter(6);
   videoGainNode.connect(audioSplitter);
   
-  let isBufferingSync = false;
-  
-  // Sync logic for external audio tracks
-  mainVideo.addEventListener('play', () => { if (currentExternalAudio && !isBufferingSync) currentExternalAudio.play(); });
-  mainVideo.addEventListener('pause', () => { if (currentExternalAudio && !isBufferingSync) currentExternalAudio.pause(); });
-  mainVideo.addEventListener('seeking', () => {
-    if (currentExternalAudio) {
-      // Just pause it so it doesn't play old audio while dragging the seek bar
-      currentExternalAudio.pause();
-    }
+  // Keep the separate soundtrack in step with the picture.
+  mainVideo.addEventListener('play', () => { if (currentExternalAudio && !hold.active) currentExternalAudio.play().catch(() => {}); });
+  mainVideo.addEventListener('pause', () => { if (currentExternalAudio) currentExternalAudio.pause(); });
+  mainVideo.addEventListener('waiting', () => { if (currentExternalAudio) currentExternalAudio.pause(); });
+  mainVideo.addEventListener('playing', () => {
+    if (currentExternalAudio && !hold.active && currentExternalAudio.paused) currentExternalAudio.play().catch(() => {});
   });
-  
+  mainVideo.addEventListener('seeking', () => {
+    // Stop the old sound while the seek bar is being dragged
+    if (currentExternalAudio) currentExternalAudio.pause();
+  });
   mainVideo.addEventListener('seeked', () => {
+    // The FFmpeg stream is a live pipe and can't be seeked, so ask for a new
+    // one that starts at the new position, once the seek has finished.
     if (currentExternalAudio && currentExternalAudio.dataset.rawUrl) {
-      // Fetch the new audio stream ONLY once the seek is completely finished!
+      resyncCount = 0;
       switchAudioTrack(currentExternalAudio.dataset.rawUrl);
     }
   });
-  // Removed toxic timeupdate sync for external audio.
-  // The FFmpeg stream is a live pipe, attempting to set .currentTime on it will abort the HTTP connection!
+  mainVideo.addEventListener('ratechange', () => {
+    if (currentExternalAudio) currentExternalAudio.playbackRate = mainVideo.playbackRate;
+  });
+
+  audioListener.setMasterVolume(masterVolume);
+  driftTimer = setInterval(checkDrift, 3000);
 
   // 2. Global Theatre Reverb (Convolver)
   const convolver = ctx.createConvolver();
@@ -178,23 +193,62 @@ export function resumeAudio() {
   }
 }
 
-export function switchAudioTrack(url) {
+// 0 to 1. Works for both the movie's own sound and a separate soundtrack.
+export function setVolume(v) {
+  masterVolume = Math.max(0, Math.min(1, v));
+  if (audioListener) audioListener.setMasterVolume(masterVolume);
+}
+
+function endHold() {
+  clearTimeout(holdTimer);
+  if (!hold.active) return;
+  hold.active = false;
+  if (hold.resume) mainVideo.play().catch(() => {});
+}
+
+// How far the soundtrack is from the picture, in seconds (0 when there is none).
+export function audioDrift() {
+  if (!currentExternalAudio || !currentExternalAudio.dataset.rawUrl) return 0;
+  return currentExternalStartTime + currentExternalAudio.currentTime - mainVideo.currentTime;
+}
+
+// The soundtrack can slip when the connection stalls. If it stays out of step,
+// restart it at the picture's position. Capped so it can never loop forever.
+function checkDrift() {
+  if (!currentExternalAudio || !currentExternalAudio.dataset.rawUrl) return;
+  if (hold.active || mainVideo.paused || mainVideo.seeking || currentExternalAudio.paused) { badDriftChecks = 0; return; }
+  badDriftChecks = Math.abs(audioDrift()) > 0.35 ? badDriftChecks + 1 : 0;
+  const now = performance.now();
+  if (badDriftChecks >= 2 && now - lastResync > 12000 && resyncCount < 3) {
+    resyncCount++;
+    switchAudioTrack(currentExternalAudio.dataset.rawUrl);
+  }
+}
+
+// Stops the separate soundtrack and goes back to the movie's own sound.
+export function stopExternalAudio() {
+  clearTimeout(holdTimer);
+  hold.active = false;
+  hold.resume = false;
+  if (currentExternalAudio) {
+    currentExternalAudio.pause();
+    currentExternalAudio.oncanplay = null;
+    delete currentExternalAudio.dataset.rawUrl;
+    currentExternalAudio.removeAttribute('src');
+    currentExternalAudio.load(); // Forces browser to abort the HTTP connection
+  }
+  if (videoGainNode) videoGainNode.gain.value = 1.0;
+}
+
+// `autoplay: true` starts the movie once the sound is ready even if it was paused.
+export function switchAudioTrack(url, { autoplay = false } = {}) {
   if (!url) {
-    if (currentExternalAudio) {
-      currentExternalAudio.pause();
-      currentExternalAudio.removeAttribute('src');
-      currentExternalAudio.load(); // Forces browser to abort the HTTP connection
-    }
-    // Unmute default video source smoothly
-    videoGainNode.gain.value = 1.0;
+    stopExternalAudio();
     return;
   }
 
-  currentExternalStartTime = mainVideo.currentTime;
-  
   if (!currentExternalAudio) {
     currentExternalAudio = new Audio();
-    currentExternalAudio.crossOrigin = 'anonymous';
     currentSourceNode = audioCtx.createMediaElementSource(currentExternalAudio);
     currentSourceNode.connect(audioSplitter);
   } else {
@@ -202,20 +256,31 @@ export function switchAudioTrack(url) {
     currentExternalAudio.removeAttribute('src');
     currentExternalAudio.load(); // Abort the old connection instantly
   }
-  
+
   // ALWAYS mute the native video track when using an external track!
   videoGainNode.gain.value = 0.0;
-  
+
+  // Hold the picture until the new sound is ready, so they start together.
+  // (FFmpeg needs a moment to start, more so over a mobile connection.)
+  if (!hold.active) {
+    hold.resume = autoplay || !mainVideo.paused;
+    hold.active = true;
+    mainVideo.pause();
+  } else if (autoplay) {
+    hold.resume = true;
+  }
+  lastResync = performance.now();
+  badDriftChecks = 0;
+  currentExternalStartTime = mainVideo.currentTime;
+
   currentExternalAudio.dataset.rawUrl = url;
+  currentExternalAudio.playbackRate = mainVideo.playbackRate;
   currentExternalAudio.src = `${url}?start=${currentExternalStartTime}`;
-  currentExternalAudio.oncanplay = null;
+  currentExternalAudio.oncanplay = () => { currentExternalAudio.oncanplay = null; endHold(); };
   currentExternalAudio.onerror = (e) => {
     console.error("External audio failed to load!", e);
+    endHold();
   };
-  
-  // If video is already playing, start audio right away.
-  // The canplay event will naturally fire once FFmpeg has buffered enough.
-  if (!mainVideo.paused) {
-    currentExternalAudio.play().catch(err => console.error('Audio play failed:', err));
-  }
+  clearTimeout(holdTimer);
+  holdTimer = setTimeout(endHold, 8000);
 }

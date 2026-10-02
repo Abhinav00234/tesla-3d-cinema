@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { fmtTime, showErr } from './utils.js';
 import { updateScreenMasking, updateSubtitles } from './sceneBuilder.js';
 
 export const video = document.getElementById('cinema-video');
@@ -51,7 +50,8 @@ video.addEventListener('pause', () => {
   releaseWakeLock();
 });
 
-export const state = { hasVideo: false };
+export const state = { hasVideo: false, nativeSubtitles: false };
+let loadId = 0;
 let lastVT = -1;
 
 export function updateVideo() {
@@ -128,25 +128,61 @@ export function updateScreenGlow(glowLight) {
   glowLight.intensity = currentIntensity;
 }
 
-export function loadVideoUrl(url, filename, onLoaded) {
-  if (video.src && video.src.startsWith('blob:')) URL.revokeObjectURL(video.src);
-  video.src = url;
-  video.crossOrigin = 'anonymous'; // Important for WebGL textures!
-  video.load();
-  document.getElementById('hud-filename').textContent = filename;
-  document.getElementById('welcome-screen').style.display = 'none';
-  
-  video.addEventListener('loadedmetadata', () => {
-    document.getElementById('total-time').textContent = fmtTime(video.duration || 0);
+// Loads a movie and calls onReady once it can be played (it does not start it).
+// A newer call cancels the callbacks of an older one.
+export function loadVideoUrl(url, { startAt = 0, onReady, onError } = {}) {
+  const id = ++loadId;
+  state.hasVideo = false;
+  video.pause();
+  loadSubtitleTrack(null);
+
+  const done = () => {
+    video.removeEventListener('loadedmetadata', onMeta);
+    video.removeEventListener('error', onErr);
+  };
+  const onMeta = () => {
+    if (id !== loadId) return;
+    done();
+    // Sound but no picture means the browser can't decode this video format.
+    if (!video.videoWidth) { if (onError) onError(null); return; }
     state.hasVideo = true;
     updateScreenMasking(video.videoWidth / video.videoHeight, videoTexture);
-    video.play().catch(()=>{});
-    if (onLoaded) onLoaded();
-  }, { once: true });
-  
-  video.addEventListener('error', () => { 
-    showErr('Cannot play this format.'); 
-  }, { once: true });
+    if (startAt > 0 && startAt < (video.duration || Infinity)) video.currentTime = startAt;
+    if (onReady) onReady();
+  };
+  const onErr = () => {
+    if (id !== loadId) return;
+    done();
+    if (onError) onError(video.error);
+  };
+  video.addEventListener('loadedmetadata', onMeta);
+  video.addEventListener('error', onErr);
+
+  video.src = url;
+  video.load();
+}
+
+export function unloadVideo() {
+  loadId++;
+  state.hasVideo = false;
+  video.pause();
+  loadSubtitleTrack(null);
+  video.removeAttribute('src');
+  video.load();
+}
+
+// In the 3D theatre the subtitles are drawn on the cinema screen ('hidden' keeps
+// the browser reading the cues without drawing them). In the flat view the
+// browser draws them itself.
+function applySubtitleMode() {
+  for (const track of video.textTracks) {
+    track.mode = state.nativeSubtitles ? 'showing' : 'hidden';
+  }
+}
+
+export function setNativeSubtitles(on) {
+  state.nativeSubtitles = on;
+  applySubtitleMode();
 }
 
 export function loadSubtitleTrack(url) {
@@ -156,21 +192,12 @@ export function loadSubtitleTrack(url) {
     track.src = url;
     track.kind = 'subtitles';
     track.default = true;
-    
+
     video.appendChild(track);
-    
-    // Immediately set mode to 'hidden' AFTER appending so the browser parses cues
-    // but does NOT render the default browser subtitle UI (we use our own 3D mesh).
-    // Doing this BEFORE appendChild has no effect, so order matters here.
-    if (video.textTracks && video.textTracks.length > 0) {
-      video.textTracks[video.textTracks.length - 1].mode = 'hidden';
-    }
-    
-    // Also set on load as a safety net in case the track isn't ready yet
-    track.addEventListener('load', () => {
-      if (video.textTracks && video.textTracks.length > 0) {
-        video.textTracks[video.textTracks.length - 1].mode = 'hidden';
-      }
-    });
+
+    // The mode must be set AFTER appending, and again once the track has
+    // loaded, or the browser falls back to its own default.
+    applySubtitleMode();
+    track.addEventListener('load', applySubtitleMode);
   }
 }

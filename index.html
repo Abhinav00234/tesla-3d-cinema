@@ -2,147 +2,184 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="Immersive 3D Web Cinema Player - Virtual 3D Theatre Engine with IMAX-Style Architecture">
   <title>3D Web Cinema Player - Virtual Theatre Engine</title>
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/"
+      "three": "/vendor/three/build/three.module.js",
+      "three/addons/": "/vendor/three/examples/jsm/"
     }
   }
   </script>
-  <link rel="stylesheet" href="css/style.css">
+  <meta name="theme-color" content="#0f1115">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23171a20'/%3E%3Cpath d='M12 9v14l11-7z' fill='%23f4f4f4'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css?v=21">
 </head>
 <body>
 <!-- LOADING SCREEN -->
-<div id="loading-screen">
+<div id="loading-screen" aria-hidden="true">
   <div id="curtain-left"></div>
   <div id="curtain-right"></div>
   <div id="loading-center">
-    <div class="cinema-brand">CINEMA 3D</div>
-    <div class="loading-subtitle">Preparing your experience</div>
+    <div class="cinema-brand" translate="no">CINEMA 3D</div>
+    <div class="loading-subtitle">Opening the Cinema…</div>
     <div class="loading-bar-wrap"><div class="loading-bar-inner" id="loading-bar"></div></div>
   </div>
 </div>
 
-<!-- WELCOME SCREEN -->
-<div id="welcome-screen" style="display:none">
-  <div id="drop-zone">
-    <h1 class="welcome-title">3D Cinema Media Library</h1>
-    <p class="welcome-subtitle">Select a movie from your local server</p>
-    <div id="movie-grid" class="movie-grid">
-      <div class="loading-spinner">Loading movies...</div>
-    </div>
-  </div>
-</div>
-
-<!-- CANVAS -->
+<!-- THEATRE -->
 <canvas id="theatre-canvas"></canvas>
 <video id="cinema-video" preload="metadata" playsinline></video>
+<!-- Catches taps and drags over the theatre, in both the 3D and the flat view -->
+<div id="stage"></div>
+<div id="seek-flash" aria-hidden="true"></div>
+
+<!-- LIBRARY -->
+<div id="library" hidden>
+  <header class="lib-header">
+    <div class="lib-brand">
+      <h1 class="lib-logo" translate="no">CINEMA 3D</h1>
+      <span id="lib-count" class="lib-count"></span>
+    </div>
+    <input id="lib-search" class="lib-search" type="search" name="movie-search" placeholder="Search movies…" autocomplete="off" spellcheck="false" aria-label="Search movies">
+    <div class="lib-actions">
+      <button id="lib-resume-btn" class="pill-btn primary" hidden>Back to Movie</button>
+      <button id="lib-refresh-btn" class="pill-btn">Refresh</button>
+      <button id="lib-help-btn" class="pill-btn">Help</button>
+    </div>
+  </header>
+
+  <div id="convert-banner" class="convert-banner" hidden>
+    <div class="convert-text">
+      <strong id="convert-title"></strong>
+      <span id="convert-detail"></span>
+    </div>
+    <div class="convert-track"><div id="convert-fill" class="convert-fill"></div></div>
+    <button id="convert-cancel-btn" class="pill-btn">Cancel</button>
+  </div>
+
+  <main class="lib-main">
+    <section id="continue-section" hidden>
+      <h2 class="lib-heading">Continue Watching</h2>
+      <div id="continue-row" class="continue-row"></div>
+    </section>
+    <h2 id="all-heading" class="lib-heading">All Movies</h2>
+    <div id="movie-grid" class="movie-grid"></div>
+    <div id="lib-message" class="lib-message" role="status" aria-live="polite" hidden></div>
+  </main>
+</div>
+
+<!-- DIALOG (convert question, help) -->
+<div id="dialog-backdrop" hidden>
+  <div id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" tabindex="-1">
+    <h2 id="dialog-title"></h2>
+    <div id="dialog-body"></div>
+    <div id="dialog-actions"></div>
+  </div>
+</div>
 
 <!-- BUFFERING -->
-<div id="buffering-overlay" style="display:none">
-  <div class="film-reel">
-    <svg viewBox="0 0 100 100">
-      <circle cx="50" cy="50" r="42" stroke="#c8a96e" stroke-width="2" fill="none" stroke-dasharray="263" stroke-dashoffset="66" opacity="0.4"/>
-      <circle cx="50" cy="50" r="28" stroke="#c8a96e" stroke-width="2" fill="none"/>
-      <circle cx="50" cy="50" r="9" fill="#c8a96e"/>
-      <circle cx="50" cy="22" r="6" fill="#c8a96e" opacity="0.7"/>
-      <circle cx="73.2" cy="65" r="6" fill="#c8a96e" opacity="0.7"/>
-      <circle cx="26.8" cy="65" r="6" fill="#c8a96e" opacity="0.7"/>
-    </svg>
-  </div>
-  <p>Loading...</p>
+<div id="buffering-overlay" role="status" aria-live="polite" hidden>
+  <div class="spinner" aria-hidden="true"></div>
+  <p>Loading…</p>
 </div>
 
-<!-- ERROR TOAST -->
-<div id="error-toast" class="toast" style="display:none"><span id="error-msg">Error</span></div>
+<!-- TOAST -->
+<div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-msg"></span><button id="toast-action" class="toast-action" hidden></button></div>
 
-<!-- HUD -->
+<!-- PLAYER CONTROLS -->
 <div id="hud" class="hud-hidden">
   <div id="hud-top">
-    <div class="hud-file-info">
-      <span class="hud-icon">FILM</span>
-      <span id="hud-filename">No file loaded</span>
-    </div>
-    <div class="hud-right-top">
-      <span class="quality-badge">CINEMA</span>
-      <span id="fps-counter" class="fps">60 fps</span>
-    </div>
+    <button id="back-btn" class="top-btn" aria-label="Back to the library">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+      <span>Library</span>
+    </button>
+    <h2 id="hud-filename" class="hud-title">No Movie Loaded</h2>
+    <span id="fps-counter" class="fps">60 fps</span>
   </div>
-  <div id="seek-container">
-    <div id="seek-bar-wrap">
-      <div id="seek-buffered"></div>
-      <div id="seek-progress"></div>
-      <input type="range" id="seek-bar" min="0" max="10000" value="0" step="1">
-    </div>
+
+  <div id="hud-middle">
+    <button id="seek-back-btn" class="big-btn" aria-label="Back 10 seconds">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+      <span>10</span>
+    </button>
+    <button id="play-btn" class="big-btn play-btn" aria-label="Play or pause">
+      <svg aria-hidden="true" id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      <svg aria-hidden="true" id="pause-icon" viewBox="0 0 24 24" hidden><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+    </button>
+    <button id="seek-fwd-btn" class="big-btn" aria-label="Forward 10 seconds">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12.01 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/></svg>
+      <span>10</span>
+    </button>
   </div>
+
   <div id="hud-bottom">
-    <div class="hud-left">
-      <button id="open-btn" class="ctrl-btn" title="Open file (O)">
-        <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V6h5.17l2 2H20v10z"/></svg>
-      </button>
-      <button id="seek-back-btn" class="ctrl-btn" title="Back 10s">
-        <svg viewBox="0 0 24 24"><path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
-      </button>
-      <button id="play-btn" class="ctrl-btn play-btn" title="Play/Pause (Space)">
-        <svg id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-        <svg id="pause-icon" viewBox="0 0 24 24" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-      </button>
-      <button id="seek-fwd-btn" class="ctrl-btn" title="Forward 10s">
-        <svg viewBox="0 0 24 24"><path d="M12.01 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/></svg>
-      </button>
-      <div class="time-display">
-        <span id="current-time">0:00:00</span>
-        <span class="time-sep">/</span>
-        <span id="total-time">0:00:00</span>
+    <div id="seek-row">
+      <span id="current-time" class="time">0:00:00</span>
+      <div id="seek-bar-wrap">
+        <div id="seek-track">
+          <div id="seek-buffered"></div>
+          <div id="seek-progress"></div>
+        </div>
+        <input type="range" id="seek-bar" name="seek" min="0" max="10000" value="0" step="1" aria-label="Seek">
+        <div id="seek-thumb"></div>
+      </div>
+      <span id="total-time" class="time">0:00:00</span>
+    </div>
+
+    <div id="button-row">
+      <div class="btn-group">
+        <button id="tracks-btn" class="ctrl-btn" data-panel="tracks">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1.5c0 .28-.22.5-.5.5h-3c-.28 0-.5-.22-.5-.5v-4c0-.28.22-.5.5-.5h3c.28 0 .5.22.5.5V11zm7 0h-1.5v-.5h-2v3h2V13H18v1.5c0 .28-.22.5-.5.5h-3c-.28 0-.5-.22-.5-.5v-4c0-.28.22-.5.5-.5h3c.28 0 .5.22.5.5V11z"/></svg>
+          <span>Audio &amp; Subtitles</span>
+        </button>
+        <button id="seat-btn" class="ctrl-btn" data-panel="seat">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 18v3h3v-3h10v3h3v-6H4v3zm15-8h3v3h-3v-3zM2 10h3v3H2v-3zm15 3H7V5c0-1.1.9-2 2-2h6c1.1 0 2 .9 2 2v8z"/></svg>
+          <span>Seat</span>
+        </button>
+        <button id="speed-btn" class="ctrl-btn" data-panel="speed">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m20.38 8.57-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z"/></svg>
+          <span id="speed-label">1x</span>
+        </button>
+        <button id="picture-btn" class="ctrl-btn" data-panel="picture">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+          <span>Picture</span>
+        </button>
+        <button id="lights-btn" class="ctrl-btn" aria-pressed="false">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
+          <span>Lights</span>
+        </button>
+      </div>
+      <div class="btn-group">
+        <button id="mute-btn" class="ctrl-btn icon-only" aria-label="Mute">
+          <svg aria-hidden="true" id="vol-icon" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+          <svg aria-hidden="true" id="muted-icon" viewBox="0 0 24 24" hidden><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"/></svg>
+        </button>
+        <input type="range" id="volume-bar" name="volume" min="0" max="100" value="100" aria-label="Volume">
+        <button id="fullscreen-btn" class="ctrl-btn icon-only" aria-label="Full screen">
+          <svg aria-hidden="true" id="fs-expand" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+          <svg aria-hidden="true" id="fs-collapse" viewBox="0 0 24 24" hidden><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
+        </button>
       </div>
     </div>
-    <div class="hud-center">
-      <button id="mute-btn" class="ctrl-btn" title="Mute (M)">
-        <svg id="vol-icon" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-        <svg id="muted-icon" viewBox="0 0 24 24" style="display:none"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
-      </button>
-      <div class="volume-wrap"><input type="range" id="volume-bar" min="0" max="100" value="100"></div>
-    </div>
-    <div class="hud-right">
-      <button id="subs-btn" class="ctrl-btn" title="Subtitles & Audio">
-        <svg viewBox="0 0 24 24"><path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1.5c0 .28-.22.5-.5.5h-3c-.28 0-.5-.22-.5-.5v-4c0-.28.22-.5.5-.5h3c.28 0 .5.22.5.5V11zm7 0h-1.5v-.5h-2v3h2V13H18v1.5c0 .28-.22.5-.5.5h-3c-.28 0-.5-.22-.5-.5v-4c0-.28.22-.5.5-.5h3c.28 0 .5.22.5.5V11z"/></svg>
-      </button>
-      <select id="seat-select" class="ctrl-select" title="Change Seat">
-        <option value="center" selected>Middle Center</option>
-        <option value="front">Front Row</option>
-        <option value="back">Back Row</option>
-        <option value="side">Left Side</option>
-      </select>
-      <select id="speed-select" class="ctrl-select">
-        <option value="0.25">0.25x</option><option value="0.5">0.5x</option>
-        <option value="0.75">0.75x</option><option value="1" selected>1x</option>
-        <option value="1.25">1.25x</option><option value="1.5">1.5x</option>
-        <option value="2">2x</option>
-      </select>
-      <button id="lights-btn" class="ctrl-btn" title="Theatre lights (L)">
-        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7zm2 14h-4v-1h4v1zm0-3H10v-1.5c-1.19-.45-2-1.6-2-2.5 0-1.66 1.34-3 3-3s3 1.34 3 3c0 .9-.81 2.05-2 2.5V13z"/></svg>
-      </button>
-      <button id="fullscreen-btn" class="ctrl-btn" title="Fullscreen (F)">
-        <svg id="fs-expand" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
-        <svg id="fs-collapse" viewBox="0 0 24 24" style="display:none"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
-      </button>
-    </div>
   </div>
 </div>
 
-<div id="tracks-menu" class="track-menu-container">
-  <h3>Audio Tracks</h3>
-  <div id="audio-list"></div>
-  <h3 style="margin-top:10px">Subtitles</h3>
-  <div id="sub-list"></div>
+<!-- OPTION PANEL (audio, subtitles, seat, speed, picture) -->
+<div id="panel" hidden>
+  <div class="panel-head">
+    <h3 id="panel-title"></h3>
+    <button id="panel-close" class="panel-close" aria-label="Close">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+    </button>
+  </div>
+  <div id="panel-body"></div>
 </div>
 
-<div id="drag-hint">Drag to look around the cinema</div>
+<div id="drag-hint" role="status" hidden>Drag to look around. Tap to show the controls.</div>
 
-<script type="module" src="js/main.js?v=16"></script>
+<script type="module" src="js/main.js?v=21"></script>
 </body>
 </html>
