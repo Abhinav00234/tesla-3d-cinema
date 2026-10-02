@@ -1,0 +1,16 @@
+# docker compose up -d
+# Put your movies in ./movies (or change the left side of the first volume).
+services:
+  cinema:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      ACCESS_PIN: ""        # set a PIN before letting other people on your network in
+    volumes:
+      - ./movies:/movies
+      - cinema-data:/data
+    restart: unless-stopped
+
+volumes:
+  cinema-data:

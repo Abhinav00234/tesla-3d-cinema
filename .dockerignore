@@ -1,0 +1,9 @@
+node_modules
+movies
+thumbnails
+config.json
+.theater-secret
+.git
+test
+docs
+*.md
