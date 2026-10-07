@@ -2,6 +2,8 @@
 
 Watch your own movies in a 3D cinema hall, in the browser of a Tesla or any other touchscreen.
 
+**Website:** https://abhinav00234.github.io/tesla-3d-cinema/
+
 Your movies stay on your own computer or phone. A small server streams them to the browser, which shows them on a curved cinema screen with 5.1 surround sound and subtitles. The controls are built for fingers on a car screen.
 
 This is a fork of the **3D Web Cinema Player** by [Amit Sikdar](https://github.com/amitsikdar37) ([original project](https://github.com/amitsikdar37/am1t_builds/tree/main/3D%20Theater%20Webplayer)). The 3D theatre, the surround sound engine and the streaming idea are his work. This edition adds the touch interface, the library, converting, the PIN and the changes needed to use it from another device. See [NOTICE.md](NOTICE.md).
