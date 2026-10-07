@@ -40,21 +40,36 @@ let pxR = maxPixelRatio();
 
 function applyPixelRatio() {
   renderer.setPixelRatio(pxR);
-  resizePost(window.innerWidth, window.innerHeight);
+  resizePost(window.innerWidth, window.innerHeight, pxR);
 }
 applyPixelRatio();
+
+// Only Best can afford the area light for the screen glow.
+function useScreenGlow() {
+  const next = quality === 'best' ? lights.screenArea : lights.screenSpot;
+  const prev = lights.screenGlow;
+  if (next !== prev) {
+    next.color.copy(prev.color);
+    next.intensity = prev.intensity / prev.userData.scale * next.userData.scale;
+    prev.visible = false;
+    lights.screenGlow = next;
+  }
+  next.visible = true;
+}
+useScreenGlow();
 
 function setQuality(q) {
   quality = q;
   pxR = maxPixelRatio();
   applyPixelRatio();
+  useScreenGlow();
 }
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  resizePost(window.innerWidth, window.innerHeight);
+  resizePost(window.innerWidth, window.innerHeight, pxR);
 });
 
 let fpsF=0, fpsL=0;

@@ -44,24 +44,21 @@ export function buildSeats(scene) {
   const seatTex = makeSeatTexture();
   const bumpTex = makeLeatherBumpMap();
   
-  // High-end luxury leather material
-  const sm = new THREE.MeshPhysicalMaterial({ 
+  // Leather material. Standard instead of Physical: clearcoat doubles the
+  // lighting cost on ~1200 seat parts and is barely visible in a dark room.
+  const sm = new THREE.MeshStandardMaterial({ 
     map: seatTex, 
     bumpMap: bumpTex,
     bumpScale: 0.008,
     color: 0x400808, 
-    roughness: 0.85,
-    metalness: 0.05,
-    clearcoat: 0.2,
-    clearcoatRoughness: 0.35
+    roughness: 0.8,
+    metalness: 0.05
   });
   
-  const am = new THREE.MeshPhysicalMaterial({ 
+  const am = new THREE.MeshStandardMaterial({ 
     color: 0x080608, 
-    roughness: 0.7, 
-    metalness: 0.1,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.5
+    roughness: 0.65, 
+    metalness: 0.1
   });
   
   const legMat = new THREE.MeshStandardMaterial({ color:0x1a1218, roughness:0.6, metalness:0.3 });
@@ -113,9 +110,6 @@ export function buildSeats(scene) {
     const sl = new THREE.Mesh(stepLightGeo, stepLight);
     sl.position.set(SPR*SS/2 + 0.1, y + 0.08, z);
     g.add(sl);
-    const slLight = new THREE.PointLight(0xff6600, 0.6, 2.5);
-    slLight.position.set(SPR*SS/2 + 0.3, y + 0.15, z);
-    g.add(slLight);
 
     let lastX = -999;
     for(let s=0; s<=SPR; s++) {

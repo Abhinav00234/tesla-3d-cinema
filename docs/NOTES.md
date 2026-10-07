@@ -43,7 +43,8 @@ Front end files:
 7. **Volume and speed did nothing** when a separate sound track was playing. They now act on the whole mix.
 8. **Touch.** The controls were small mouse controls. Everything is at least 56px tall, with tap, double-tap and drag gestures, and each gesture also has a button.
 9. **Weak graphics chips.** Added the Smooth quality mode (no bloom, no anti-aliasing, 1x resolution) and a flat view with no 3D. The 3D room is not drawn while the library covers it.
-10. **Android.** The bundled FFmpeg doesn't exist for Android, which made `npm install` fail. It is optional now and the server falls back to the system FFmpeg.
+10. **Frame rate.** The room had 31 lights, and three.js shades every visible light on every pixel, even at brightness 0. The step, exit and LED lights are now glowing shapes only, the house lights are hidden while off, the seats use a cheaper material, the glow effect runs at half resolution, and only Best uses the costly area light for the screen glow (the others use a spotlight matched to it). On a laptop's Intel graphics at 1920x1080, Auto went from 23 to 60 fps. The glow pipeline also ignored the sharpness setting; it now follows it.
+11. **Android.** The bundled FFmpeg doesn't exist for Android, which made `npm install` fail. It is optional now and the server falls back to the system FFmpeg.
 
 ## Design
 

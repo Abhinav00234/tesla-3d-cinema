@@ -38,11 +38,6 @@ export function buildStage(scene) {
   const ledL = new THREE.Mesh(ledGeo, ledMat);
   ledL.position.set(-ROOM_W/2 + 1.2, 0.03, SCR_Z + 7 + aisleLength/2); g.add(ledL);
   const ledR = ledL.clone(); ledR.position.x = ROOM_W/2 - 1.2; g.add(ledR);
-  // Soft warm glow from the LED strips (very dim, just kissing the floor)
-  const ledGlowL = new THREE.PointLight(0xff3300, 0.3, 4);
-  ledGlowL.position.set(-ROOM_W/2+1.5, 0.3, SCR_Z+7+aisleLength/2); g.add(ledGlowL);
-  const ledGlowR = new THREE.PointLight(0xff3300, 0.3, 4);
-  ledGlowR.position.set(ROOM_W/2-1.5, 0.3, SCR_Z+7+aisleLength/2); g.add(ledGlowR);
 
   // Stanchion barrier right at the edge of the stage, keeping audience back
   const STANCHION_Z = SCR_Z + 7.2; // Right at stage edge
@@ -81,8 +76,6 @@ export function buildStage(scene) {
   const makeExit = (x, z, ry) => {
     const sign = new THREE.Mesh(exitGeo, exitBg);
     sign.position.set(x, 3.1, z); sign.rotation.y = ry; g.add(sign);
-    const glow = new THREE.PointLight(0xff2200, 0.15, 2.5);
-    glow.position.set(x+(ry===Math.PI/2?0.15:-0.15), 3.1, z); g.add(glow);
   };
   makeExit(-ROOM_W/2+0.1, STANCHION_Z, Math.PI/2);
   makeExit( ROOM_W/2-0.1, STANCHION_Z, -Math.PI/2);

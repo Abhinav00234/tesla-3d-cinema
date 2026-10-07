@@ -26,7 +26,10 @@ export function initPost(renderer, scene, camera) {
 export function updatePost(t) {
 }
 
-export function resizePost(w, h) {
-  if (composer) composer.setSize(w, h);
-  if (bloomPass) bloomPass.resolution.set(w, h);
+export function resizePost(w, h, pixelRatio) {
+  if (!composer) return;
+  composer.setPixelRatio(pixelRatio);
+  composer.setSize(w, h);
+  // The glow is a soft blur, so half resolution looks the same at a quarter of the cost.
+  bloomPass.setSize(Math.ceil(w * pixelRatio / 2), Math.ceil(h * pixelRatio / 2));
 }

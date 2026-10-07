@@ -188,7 +188,7 @@ export function initUI(deps) {
   video.addEventListener('pause', () => {
     syncUi();
     if (!hold.active) { showHUD(); rememberProgress(); }
-    if (lights.screenGlow) lights.screenGlow.intensity = 0.55;
+    if (lights.screenGlow) lights.screenGlow.intensity = 0.55 * lights.screenGlow.userData.scale;
   });
   video.addEventListener('ended', () => {
     if (current.movie) clearProgress(current.movie.name);
@@ -280,7 +280,7 @@ export function initUI(deps) {
   // ── Lights, view, quality ────────────────────────────────────────
   function toggleLights() {
     lightsOn = !lightsOn;
-    lights.ceilSpots.forEach((s) => { s.intensity = lightsOn ? 4000.0 : 0; });
+    lights.ceilSpots.forEach((s) => { s.intensity = lightsOn ? 4000.0 : 0; s.visible = lightsOn; });
     lights.ambientLight.intensity = lightsOn ? 8.0 : 1.0;
     $('lights-btn').classList.toggle('active', lightsOn);
     $('lights-btn').setAttribute('aria-pressed', String(lightsOn));

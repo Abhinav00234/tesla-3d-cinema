@@ -125,7 +125,7 @@ export function updateScreenGlow(glowLight) {
   currentIntensity += (targetIntensity - currentIntensity) * 0.08; // Smooth intensity transition
 
   glowLight.color.copy(currentColor);
-  glowLight.intensity = currentIntensity;
+  glowLight.intensity = currentIntensity * glowLight.userData.scale;
 }
 
 // Loads a movie and calls onReady once it can be played (it does not start it).

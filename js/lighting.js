@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import { ROOM_W, ROOM_H, ROOM_D, SCR_W, SCR_H, SCR_Z, SCR_Y } from './config.js';
+import { ROOM_H, SCR_W, SCR_H, SCR_Z, SCR_Y } from './config.js';
+
+// Brightness of the spotlight glow relative to the area light, matched by eye on the walls.
+const SPOT_SCALE = 550;
 
 let beam;
 export function buildBeam(scene) {
@@ -36,25 +39,32 @@ export function buildLighting(scene) {
   const ambientLight = new THREE.AmbientLight(0x08050a, 1.0); scene.add(ambientLight);
 
   // Screen area glow (dynamic, driven by video colour)
-  const screenGlow = new THREE.RectAreaLight(0xffffff, 0, SCR_W, SCR_H);
-  screenGlow.position.set(0, SCR_Y, SCR_Z + 0.5);
+  const screenArea = new THREE.RectAreaLight(0xffffff, 0, SCR_W, SCR_H);
+  screenArea.position.set(0, SCR_Y, SCR_Z + 0.5);
   // Tilt the light slightly upwards and towards the back seats so it doesn't
   // overexpose the stage floor directly in front of the screen.
-  screenGlow.lookAt(0, SCR_Y + 15, 10);
-  scene.add(screenGlow);
+  screenArea.lookAt(0, SCR_Y + 15, 10);
+  screenArea.userData.scale = 1;
+  scene.add(screenArea);
 
-  // Ceiling down-spots (togglable house lights)
+  // The area light is the most expensive light type, so the lighter quality
+  // modes use a wide soft spotlight from behind the screen instead.
+  const screenSpot = new THREE.SpotLight(0xffffff, 0, 0, Math.PI/3, 0.6, 2);
+  screenSpot.position.set(0, SCR_Y, SCR_Z - 12);
+  screenSpot.target.position.set(0, SCR_Y + 2, 10);
+  screenSpot.userData.scale = SPOT_SCALE;
+  screenSpot.visible = false;
+  scene.add(screenSpot); scene.add(screenSpot.target);
+
+  // Ceiling down-spots (togglable house lights). Hidden while off: three.js
+  // still shades every visible light even at intensity 0.
   const ceilSpots = [];
   [[-12,ROOM_H-0.3,-2],[12,ROOM_H-0.3,-2],[-12,ROOM_H-0.3,8],[12,ROOM_H-0.3,8],
    [-12,ROOM_H-0.3,18],[12,ROOM_H-0.3,18],[0,ROOM_H-0.3,4],[0,ROOM_H-0.3,14]].forEach(([x,y,z]) => {
     const s = new THREE.SpotLight(0xffe8c0, 0, 0, Math.PI/7, 0.4);
-    s.position.set(x,y,z); s.target.position.set(x,-0.5,z);
+    s.position.set(x,y,z); s.target.position.set(x,-0.5,z); s.visible = false;
     scene.add(s); scene.add(s.target); ceilSpots.push(s);
   });
 
-  // Rear red exit emergency lights
-  const ex = (x,z) => { const l=new THREE.PointLight(0xff1a1a,0.5,5); l.position.set(x,1.8,z); scene.add(l); };
-  ex(-ROOM_W/2+1, ROOM_D/2-2); ex(ROOM_W/2-1, ROOM_D/2-2);
-
-  return { ambientLight, screenGlow, ceilSpots };
+  return { ambientLight, screenGlow: screenArea, screenArea, screenSpot, ceilSpots };
 }
