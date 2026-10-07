@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cinema 3D: your own movies on your Tesla's screen</title>
+<meta name="description" content="A free 3D cinema for your car's screen. Your movies stream from your phone or laptop, with no internet and no subscription.">
+<meta name="theme-color" content="#121418">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256' fill='%233e6ae1'%3E%3Cpath d='M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM40,88h80v80H40Zm96-16V56h32V72Zm-16,0H88V56h32Zm0,112v16H88V184Zm16,0h32v16H136Zm0-16V88h80v80Zm80-96H184V56h32ZM72,56V72H40V56ZM40,184H72v16H40Zm176,16H184V184h32v16Z'/%3E%3C/svg%3E">
+<meta property="og:title" content="Cinema 3D: your own movies on your Tesla's screen">
+<meta property="og:description" content="A free 3D cinema for your car's screen. Your movies stream from your phone or laptop, with no internet and no subscription.">
+<meta property="og:image" content="img/theatre-1600.webp">
+<link rel="preload" as="image" href="img/theatre-1600.webp" imagesrcset="img/theatre-960.webp 960w, img/theatre-1600.webp 1600w, img/theatre-2400.webp 2400w" imagesizes="(min-width: 960px) 60vw, 100vw">
+<style>
+:root {
+  --bg: #121418;
+  --surface: #171a20;
+  --surface-2: #1f2229;
+  --line: #2a2e36;
+  --text: #eeeeee;
+  --muted: #a4a7ad;
+  --accent: #3e6ae1;
+  --accent-hover: #3459c4;
+  --radius-control: 4px;   /* buttons and inputs */
+  --radius-card: 12px;     /* images and panels */
+  --wrap: 1200px;
+  --gutter: clamp(16px, 4vw, 40px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+img { display: block; max-width: 100%; height: auto; }
+[id] { scroll-margin-top: 88px; }
+a, button, label, summary { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+@media (pointer: fine) { html { overscroll-behavior: none; } }
+a { color: inherit; }
+h1, h2, h3 { font-weight: 500; margin: 0; line-height: 1.15; text-wrap: balance; }
+p { margin: 0; }
+.wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 max(var(--gutter), env(safe-area-inset-right)) 0 max(var(--gutter), env(safe-area-inset-left)); }
+.ic { width: 1.25em; height: 1.25em; fill: currentColor; flex: none; }
+.muted { color: var(--muted); }
+.section { padding: clamp(64px, 10vw, 120px) 0; }
+.section h2 { font-size: clamp(28px, 4vw, 40px); max-width: 22ch; }
+.lead { color: var(--muted); font-size: 18px; max-width: 60ch; margin-top: 16px; }
+.skip { position: absolute; left: -999px; top: 8px; background: var(--accent); color: #fff; padding: 8px 12px; border-radius: var(--radius-control); z-index: 3; }
+.skip:focus { left: 8px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 48px; padding: 0 24px; border-radius: var(--radius-control);
+  font: 500 15px/1 inherit; font-family: inherit; text-decoration: none; white-space: nowrap;
+  background: var(--accent); color: #fff; border: 0; cursor: pointer;
+  transition: background-color .2s, transform .15s;
+}
+.btn:hover { background: var(--accent-hover); }
+.btn:active { transform: scale(.98); }
+.btn-sm { min-height: 40px; padding: 0 16px; font-size: 14px; }
+
+/* Nav */
+.nav { position: sticky; top: 0; z-index: 2; background: rgb(18 20 24 / .88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 500; letter-spacing: .3em; font-size: 14px; text-decoration: none; text-transform: uppercase; }
+.brand .ic { width: 22px; height: 22px; color: var(--accent); }
+.nav-right { display: flex; align-items: center; gap: 8px; }
+.help-link { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; text-decoration: none; font-size: 14px; font-weight: 500; border-radius: var(--radius-control); }
+.help-link:hover { background: var(--surface-2); }
+
+/* Hero */
+.hero { padding: clamp(32px, 6vw, 72px) 0 clamp(48px, 7vw, 88px); overflow: hidden; }
+.hero-grid { display: grid; gap: 40px; align-items: center; }
+.hero h1 { font-size: clamp(36px, 4.4vw, 54px); line-height: 1.08; }
+.hero p { font-size: 19px; color: var(--muted); max-width: 36ch; margin: 20px 0 32px; }
+.hero p strong { color: var(--text); font-weight: 500; }
+.hero-shot { border-radius: var(--radius-card); box-shadow: 0 30px 80px -20px rgb(232 140 40 / .28); }
+@media (min-width: 960px) {
+  .hero-grid { grid-template-columns: 11fr 13fr; }
+  .hero-media { margin-right: calc(-1 * var(--gutter) - max(0px, (100vw - var(--wrap)) / 2)); }
+  .hero-shot { border-radius: var(--radius-card) 0 0 var(--radius-card); }
+}
+
+/* Offer statement */
+.offer { border-block: 1px solid var(--line); background: var(--surface); }
+.offer .wrap { padding-block: clamp(40px, 6vw, 64px); }
+.offer p { font-size: clamp(24px, 3.4vw, 36px); font-weight: 500; line-height: 1.25; max-width: 30ch; }
+.offer p span { color: var(--muted); }
+
+/* Devices */
+.devices { display: flex; gap: 12px; margin-top: 32px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; scrollbar-width: none; }
+.devices::-webkit-scrollbar { display: none; }
+.device { flex: 0 0 auto; scroll-snap-align: start; display: flex; align-items: center; gap: 12px; padding: 16px 20px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); min-width: 220px; }
+.device .ic { width: 28px; height: 28px; color: var(--accent); }
+.device strong { display: block; font-weight: 500; }
+.device span { font-size: 14px; color: var(--muted); }
+.device.main { border-color: var(--accent); }
+@media (min-width: 1024px) { .devices { flex-wrap: wrap; overflow: visible; } .device { flex: 1 1 0; min-width: 0; } }
+
+/* Why: bento */
+.bento { display: grid; gap: 16px; margin-top: 40px; }
+.cell { border-radius: var(--radius-card); background: var(--surface); border: 1px solid var(--line); overflow: hidden; display: flex; flex-direction: column; }
+.cell .txt { padding: 24px; }
+.cell h3 { font-size: 20px; }
+.cell p { color: var(--muted); margin-top: 8px; max-width: 46ch; }
+.cell .ic { width: 28px; height: 28px; color: var(--accent); margin-bottom: 16px; }
+.cell img { margin-top: auto; }
+.cell.tint { background: linear-gradient(160deg, #1d2a4d 0%, var(--surface) 70%); }
+.cell .ic.big { width: 45%; height: auto; aspect-ratio: 1; margin: auto 24px 24px auto; color: var(--accent); opacity: .18; }
+@media (max-width: 767px) { .cell .ic.big { display: none; } }
+@media (min-width: 768px) {
+  .bento { grid-template-columns: repeat(6, 1fr); }
+  .c1 { grid-column: span 4; } .c2 { grid-column: span 2; }
+  .c3 { grid-column: span 2; } .c4 { grid-column: span 4; }
+}
+
+/* Proof numbers */
+.proof { display: grid; gap: 32px 24px; margin-top: 40px; grid-template-columns: repeat(2, 1fr); }
+.proof div { border-top: 1px solid var(--line); padding-top: 20px; }
+.proof b { display: block; font-size: clamp(40px, 6vw, 64px); font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
+.proof span { display: block; color: var(--muted); margin-top: 10px; max-width: 26ch; }
+@media (min-width: 960px) { .proof { grid-template-columns: repeat(4, 1fr); } }
+
+/* Don't vs do */
+.compare { display: grid; gap: 16px; margin-top: 40px; }
+.col { border-radius: var(--radius-card); padding: 28px; border: 1px solid var(--line); }
+.col.do { background: var(--surface); border-color: var(--accent); }
+.col h3 { font-size: 18px; margin-bottom: 8px; }
+.col ul { list-style: none; margin: 0; padding: 0; }
+.col li { display: flex; gap: 12px; padding: 14px 0; }
+.col li + li { border-top: 1px solid var(--line); }
+.col li .ic { margin-top: 2px; }
+.col.dont li .ic { color: #d9534f; }
+.col.do li .ic { color: var(--accent); }
+.col li b { font-weight: 500; display: block; }
+.col li span { color: var(--muted); font-size: 15px; }
+@media (min-width: 860px) { .compare { grid-template-columns: 1fr 1fr; } }
+
+/* Steps */
+.steps-grid { display: grid; gap: 48px; margin-top: 40px; align-items: start; }
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 48px 1fr; gap: 16px; padding-bottom: 32px; position: relative; }
+.steps li::before { content: counter(s); width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--accent); color: var(--text); display: grid; place-items: center; font-weight: 500; }
+.steps li:not(:last-child)::after { content: ""; position: absolute; left: 20px; top: 48px; bottom: 8px; width: 1px; background: var(--line); }
+.steps h3 { font-size: 20px; padding-top: 6px; }
+.steps p { color: var(--muted); margin-top: 6px; max-width: 48ch; }
+.steps code { font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-2); padding: 2px 6px; border-radius: var(--radius-control); color: var(--text); }
+.phone { max-width: 300px; margin-inline: auto; }
+.phone img { border-radius: var(--radius-card); border: 1px solid var(--line); }
+.phone figcaption { font-size: 14px; color: var(--muted); margin-top: 12px; text-align: center; }
+@media (min-width: 960px) { .steps-grid { grid-template-columns: 7fr 4fr; } .phone { position: sticky; top: 96px; } }
+
+/* Estimate */
+.estimate { display: grid; gap: 24px; margin-top: 40px; }
+.est-form { display: grid; gap: 24px; }
+fieldset { border: 0; margin: 0; padding: 0; }
+legend { font-weight: 500; margin-bottom: 12px; }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice input { position: absolute; opacity: 0; pointer-events: none; }
+.choice span { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 16px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); cursor: pointer; transition: border-color .2s, background-color .2s; }
+.choice span:hover { border-color: #4a4f5a; }
+.choice input:checked + span { border-color: var(--accent); background: #1c2540; }
+.choice input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.result { border-radius: var(--radius-card); background: var(--surface); border: 1px solid var(--line); padding: 28px; }
+.result .time { font-size: clamp(36px, 5vw, 48px); font-weight: 500; line-height: 1.1; }
+.result ul { margin: 16px 0 0; padding-left: 20px; color: var(--muted); }
+.result li + li { margin-top: 8px; }
+@media (min-width: 960px) { .estimate { grid-template-columns: 7fr 5fr; align-items: start; } .result { position: sticky; top: 96px; } }
+
+/* FAQ */
+.faq { margin-top: 32px; max-width: 820px; }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 20px 0; font-size: 18px; font-weight: 500; min-height: 48px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary:hover { color: #fff; }
+.faq summary .ic { transition: transform .2s; color: var(--muted); }
+.faq details[open] summary .ic { transform: rotate(180deg); }
+.faq details p { color: var(--muted); padding: 0 0 20px; max-width: 65ch; }
+
+/* Credits + final */
+.credits { display: grid; gap: 24px; margin-top: 32px; }
+.credits div { border-top: 1px solid var(--line); padding-top: 16px; }
+.credits b { font-weight: 500; display: block; margin-bottom: 4px; }
+.credits p { color: var(--muted); font-size: 15px; }
+@media (min-width: 860px) { .credits { grid-template-columns: repeat(3, 1fr); } }
+.final { text-align: center; }
+.final h2 { margin: 0 auto; }
+.final p { margin: 16px auto 32px; }
+footer { border-top: 1px solid var(--line); padding: 32px 0 calc(32px + env(safe-area-inset-bottom)); font-size: 14px; color: var(--muted); }
+footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+footer a { color: var(--text); }
+
+/* Reveal on scroll */
+@media (prefers-reduced-motion: no-preference) {
+  .js .reveal { opacity: 0; transform: translateY(20px); transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1); }
+  .js .reveal.in { opacity: 1; transform: none; }
+  .hero-shot { animation: rise 1s cubic-bezier(.16,1,.3,1) both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(24px) scale(.985); } }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+@media (max-width: 480px) { .help-link span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } .nav .btn-sm { padding: 0 12px; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-car-profile" viewBox="0 0 256 256"><path d="M240,112H211.31L168,68.69A15.86,15.86,0,0,0,156.69,64H44.28A16,16,0,0,0,31,71.12L1.34,115.56A8.07,8.07,0,0,0,0,120v48a16,16,0,0,0,16,16H33a32,32,0,0,0,62,0h66a32,32,0,0,0,62,0h17a16,16,0,0,0,16-16V128A16,16,0,0,0,240,112ZM44.28,80H156.69l32,32H23ZM64,192a16,16,0,1,1,16-16A16,16,0,0,1,64,192Zm128,0a16,16,0,1,1,16-16A16,16,0,0,1,192,192Zm48-24H223a32,32,0,0,0-62,0H95a32,32,0,0,0-62,0H16V128H240Z"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 256 256"><path d="M232,168h-8V72a24,24,0,0,0-24-24H56A24,24,0,0,0,32,72v96H24a8,8,0,0,0-8,8v16a24,24,0,0,0,24,24H216a24,24,0,0,0,24-24V176A8,8,0,0,0,232,168ZM48,72a8,8,0,0,1,8-8H200a8,8,0,0,1,8,8v96H48ZM224,192a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8v-8H224ZM152,88a8,8,0,0,1-8,8H112a8,8,0,0,1,0-16h32A8,8,0,0,1,152,88Z"/></symbol>
+  <symbol id="i-android-logo" viewBox="0 0 256 256"><path d="M176,148a12,12,0,1,1-12-12A12,12,0,0,1,176,148ZM92,136a12,12,0,1,0,12,12A12,12,0,0,0,92,136Zm148,24v24a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V161.13A113.38,113.38,0,0,1,51.4,78.72L26.34,53.66A8,8,0,0,1,37.66,42.34L63.82,68.5a111.43,111.43,0,0,1,128.55-.19l26-26a8,8,0,0,1,11.32,11.32L204.82,78.5c.75.71,1.5,1.43,2.24,2.17A111.25,111.25,0,0,1,240,160Zm-16,0a96,96,0,0,0-96-96h-.34C74.91,64.18,32,107.75,32,161.13V184H224Z"/></symbol>
+  <symbol id="i-device-tablet" viewBox="0 0 256 256"><path d="M192,24H64A24,24,0,0,0,40,48V208a24,24,0,0,0,24,24H192a24,24,0,0,0,24-24V48A24,24,0,0,0,192,24ZM56,72H200V184H56Zm8-32H192a8,8,0,0,1,8,8v8H56V48A8,8,0,0,1,64,40ZM192,216H64a8,8,0,0,1-8-8v-8H200v8A8,8,0,0,1,192,216Z"/></symbol>
+  <symbol id="i-shipping-container" viewBox="0 0 256 256"><path d="M236.4,70.65,130.2,40.31a8,8,0,0,0-3.33-.23L21.74,55.1A16.08,16.08,0,0,0,8,70.94V185.06A16.08,16.08,0,0,0,21.74,200.9l105.13,15A8.47,8.47,0,0,0,128,216a7.85,7.85,0,0,0,2.2-.31l106.2-30.34A16.07,16.07,0,0,0,248,170V86A16.07,16.07,0,0,0,236.4,70.65ZM96,120H80V62.94l40-5.72V198.78l-40-5.72V136H96a8,8,0,0,0,0-16ZM24,70.94l40-5.72V120H48a8,8,0,0,0,0,16H64v54.78l-40-5.72ZM136,197.39V58.61L232,86V170Z"/></symbol>
+  <symbol id="i-wifi-slash" viewBox="0 0 256 256"><path d="M213.92,210.62a8,8,0,1,1-11.84,10.76l-52-57.15a60,60,0,0,0-57.41,7.24,8,8,0,1,1-9.42-12.93A75.43,75.43,0,0,1,128,144c1.28,0,2.55,0,3.82.1L104.9,114.49A108,108,0,0,0,61,135.31,8,8,0,0,1,49.73,134,8,8,0,0,1,51,122.77a124.27,124.27,0,0,1,41.71-21.66L69.37,75.4a155.43,155.43,0,0,0-40.29,24A8,8,0,0,1,18.92,87,171.87,171.87,0,0,1,58,62.86L42.08,45.38A8,8,0,1,1,53.92,34.62ZM128,192a12,12,0,1,0,12,12A12,12,0,0,0,128,192ZM237.08,87A172.3,172.3,0,0,0,106,49.4a8,8,0,1,0,2,15.87A158.33,158.33,0,0,1,128,64a156.25,156.25,0,0,1,98.92,35.37A8,8,0,0,0,237.08,87ZM195,135.31a8,8,0,0,0,11.24-1.3,8,8,0,0,0-1.3-11.24,124.25,124.25,0,0,0-51.73-24.2A8,8,0,1,0,150,114.24,108.12,108.12,0,0,1,195,135.31Z"/></symbol>
+  <symbol id="i-film-strip" viewBox="0 0 256 256"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM40,88h80v80H40Zm96-16V56h32V72Zm-16,0H88V56h32Zm0,112v16H88V184Zm16,0h32v16H136Zm0-16V88h80v80Zm80-96H184V56h32ZM72,56V72H40V56ZM40,184H72v16H40Zm176,16H184V184h32v16Z"/></symbol>
+  <symbol id="i-hand-tap" viewBox="0 0 256 256"><path d="M56,76a60,60,0,0,1,120,0,8,8,0,0,1-16,0,44,44,0,0,0-88,0,8,8,0,1,1-16,0Zm140,44a27.9,27.9,0,0,0-13.36,3.39A28,28,0,0,0,144,106.7V76a28,28,0,0,0-56,0v80l-3.82-6.13a28,28,0,0,0-48.41,28.17l29.32,50A8,8,0,1,0,78.89,220L49.6,170a12,12,0,1,1,20.78-12l.14.23,18.68,30A8,8,0,0,0,104,184V76a12,12,0,0,1,24,0v68a8,8,0,1,0,16,0V132a12,12,0,0,1,24,0v20a8,8,0,0,0,16,0v-4a12,12,0,0,1,24,0v36c0,21.61-7.1,36.3-7.16,36.42a8,8,0,0,0,3.58,10.73A7.9,7.9,0,0,0,208,232a8,8,0,0,0,7.16-4.42c.37-.73,8.85-18,8.85-43.58V148A28,28,0,0,0,196,120Z"/></symbol>
+  <symbol id="i-arrows-clockwise" viewBox="0 0 256 256"><path d="M224,48V96a8,8,0,0,1-8,8H168a8,8,0,0,1,0-16h28.69L182.06,73.37a79.56,79.56,0,0,0-56.13-23.43h-.45A79.52,79.52,0,0,0,69.59,72.71,8,8,0,0,1,58.41,61.27a96,96,0,0,1,135,.79L208,76.69V48a8,8,0,0,1,16,0ZM186.41,183.29a80,80,0,0,1-112.47-.66L59.31,168H88a8,8,0,0,0,0-16H40a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V179.31l14.63,14.63A95.43,95.43,0,0,0,130,222.06h.53a95.36,95.36,0,0,0,67.07-27.33,8,8,0,0,0-11.18-11.44Z"/></symbol>
+  <symbol id="i-lock-key" viewBox="0 0 256 256"><path d="M128,112a28,28,0,0,0-8,54.83V184a8,8,0,0,0,16,0V166.83A28,28,0,0,0,128,112Zm0,40a12,12,0,1,1,12-12A12,12,0,0,1,128,152Zm80-72H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/></symbol>
+  <symbol id="i-lifebuoy" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm39.1,131.79a47.84,47.84,0,0,0,0-55.58l28.5-28.49a87.83,87.83,0,0,1,0,112.56ZM96,128a32,32,0,1,1,32,32A32,32,0,0,1,96,128Zm88.28-67.6L155.79,88.9a47.84,47.84,0,0,0-55.58,0L71.72,60.4a87.83,87.83,0,0,1,112.56,0ZM60.4,71.72l28.5,28.49a47.84,47.84,0,0,0,0,55.58L60.4,184.28a87.83,87.83,0,0,1,0-112.56ZM71.72,195.6l28.49-28.5a47.84,47.84,0,0,0,55.58,0l28.49,28.5a87.83,87.83,0,0,1-112.56,0Z"/></symbol>
+  <symbol id="i-github-logo" viewBox="0 0 256 256"><path d="M208.31,75.68A59.78,59.78,0,0,0,202.93,28,8,8,0,0,0,196,24a59.75,59.75,0,0,0-48,24H124A59.75,59.75,0,0,0,76,24a8,8,0,0,0-6.93,4,59.78,59.78,0,0,0-5.38,47.68A58.14,58.14,0,0,0,56,104v8a56.06,56.06,0,0,0,48.44,55.47A39.8,39.8,0,0,0,96,192v8H72a24,24,0,0,1-24-24A40,40,0,0,0,8,136a8,8,0,0,0,0,16,24,24,0,0,1,24,24,40,40,0,0,0,40,40H96v16a8,8,0,0,0,16,0V192a24,24,0,0,1,48,0v40a8,8,0,0,0,16,0V192a39.8,39.8,0,0,0-8.44-24.53A56.06,56.06,0,0,0,216,112v-8A58.14,58.14,0,0,0,208.31,75.68ZM200,112a40,40,0,0,1-40,40H112a40,40,0,0,1-40-40v-8a41.74,41.74,0,0,1,6.9-22.48A8,8,0,0,0,80,73.83a43.81,43.81,0,0,1,.79-33.58,43.88,43.88,0,0,1,32.32,20.06A8,8,0,0,0,119.82,64h32.35a8,8,0,0,0,6.74-3.69,43.87,43.87,0,0,1,32.32-20.06A43.81,43.81,0,0,1,192,73.83a8.09,8.09,0,0,0,1,7.65A41.72,41.72,0,0,1,200,104Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 256 256"><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></symbol>
+  <symbol id="i-folder-simple" viewBox="0 0 256 256"><path d="M216,72H130.67L102.93,51.2a16.12,16.12,0,0,0-9.6-3.2H40A16,16,0,0,0,24,64V200a16,16,0,0,0,16,16H216.89A15.13,15.13,0,0,0,232,200.89V88A16,16,0,0,0,216,72Zm0,128H40V64H93.33L123.2,86.4A8,8,0,0,0,128,88h88Z"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 256 256"><path d="M237.66,66.34a8,8,0,0,0-11.32,0L192,100.69,155.31,64l34.35-34.34a8,8,0,1,0-11.32-11.32L144,52.69,117.66,26.34a8,8,0,0,0-11.32,11.32L112.69,44l-53,53a40,40,0,0,0,0,56.57l15.71,15.71L26.34,218.34a8,8,0,0,0,11.32,11.32l49.09-49.09,15.71,15.71a40,40,0,0,0,56.57,0l53-53,6.34,6.35a8,8,0,0,0,11.32-11.32L203.31,112l34.35-34.34A8,8,0,0,0,237.66,66.34ZM147.72,185a24,24,0,0,1-33.95,0L71,142.23a24,24,0,0,1,0-33.95l53-53L200.69,132Z"/></symbol>
+  <symbol id="i-caret-down" viewBox="0 0 256 256"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></symbol>
+</svg>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Cinema 3D home" translate="no"><svg class="ic" aria-hidden="true"><use href="#i-film-strip"/></svg>Cinema 3D</a>
+    <div class="nav-right">
+      <a class="help-link" href="https://github.com/Abhinav00234/tesla-3d-cinema/issues"><svg class="ic" aria-hidden="true"><use href="#i-lifebuoy"/></svg><span>Get help</span></a>
+      <a class="btn btn-sm" href="#setup">Set it up free</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero" id="top">
+    <div class="wrap hero-grid">
+      <div>
+        <h1>Your Tesla can’t play your movies.</h1>
+        <p><strong>Now it can.</strong> A free 3D cinema for its screen, streamed from your phone or laptop with no internet.</p>
+        <a class="btn" href="#setup">Set it up free</a>
+      </div>
+      <div class="hero-media">
+        <img class="hero-shot" src="img/theatre-1600.webp"
+             srcset="img/theatre-960.webp 960w, img/theatre-1600.webp 1600w, img/theatre-2400.webp 2400w"
+             sizes="(min-width: 960px) 60vw, 100vw" width="1600" height="900" fetchpriority="high"
+             alt="The Cinema 3D player: a film plays on a curved cinema screen, and its warm sunset light falls on the walls and the rows of seats.">
+      </div>
+    </div>
+  </section>
+
+  <section class="offer" aria-label="The offer">
+    <div class="wrap">
+      <p>It’s free. No account, no subscription, no ads. <span>Your movies stay on your own phone or laptop.</span></p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="where">
+    <div class="wrap">
+      <h2 id="where">Works with what you already have.</h2>
+      <p class="lead">The car only needs its web browser. Your movies live on a laptop or an Android phone.</p>
+      <div class="devices reveal">
+        <div class="device main"><svg class="ic" aria-hidden="true"><use href="#i-car-profile"/></svg><div><strong>Tesla screen</strong><span>Built for its browser</span></div></div>
+        <div class="device"><svg class="ic" aria-hidden="true"><use href="#i-device-tablet"/></svg><div><strong>Any browser</strong><span>Other cars, tablets, TVs</span></div></div>
+        <div class="device"><svg class="ic" aria-hidden="true"><use href="#i-laptop"/></svg><div><strong>Laptop or PC</strong><span>Windows, macOS, Linux</span></div></div>
+        <div class="device"><svg class="ic" aria-hidden="true"><use href="#i-android-logo"/></svg><div><strong>Android phone</strong><span>Even a USB stick on it</span></div></div>
+        <div class="device"><svg class="ic" aria-hidden="true"><use href="#i-shipping-container"/></svg><div><strong>Home server</strong><span>With Docker</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="why" style="padding-top:0">
+    <div class="wrap">
+      <h2 id="why">A real cinema, not a video in a browser tab.</h2>
+      <div class="bento">
+        <div class="cell c1 reveal">
+          <div class="txt">
+            <h3>Pick your seat</h3>
+            <p>A full 3D theatre with a curved screen that lights up the room with the colours of the film. Sit in the middle, the front row or the back.</p>
+          </div>
+          <img src="img/side-seat-1200.webp" srcset="img/side-seat-800.webp 800w, img/side-seat-1200.webp 1200w" sizes="(min-width: 768px) 66vw, 100vw" width="1200" height="675" loading="lazy" alt="The view from a side seat in the 3D theatre, looking across the rows at the curved screen.">
+        </div>
+        <div class="cell c2 tint reveal">
+          <div class="txt">
+            <svg class="ic" aria-hidden="true"><use href="#i-wifi-slash"/></svg>
+            <h3>No internet needed</h3>
+            <p>The car joins your phone’s hotspot and plays straight from it. Nothing is loaded from other websites.</p>
+          </div>
+          <svg class="ic big" aria-hidden="true"><use href="#i-wifi-slash"/></svg>
+        </div>
+        <div class="cell c3 reveal">
+          <div class="txt">
+            <svg class="ic" aria-hidden="true"><use href="#i-arrows-clockwise"/></svg>
+            <h3>Plays files your car can’t</h3>
+            <p>4K and HEVC files get a one-tap copy that the car’s browser can play. Sound tracks and subtitles come along.</p>
+          </div>
+          <svg class="ic big" aria-hidden="true"><use href="#i-arrows-clockwise"/></svg>
+        </div>
+        <div class="cell c4 reveal">
+          <div class="txt">
+            <h3>Made for fingers</h3>
+            <p>Big buttons, double-tap to skip 10 seconds, drag to look around. Sound track, subtitles and speed are one tap away.</p>
+          </div>
+          <img src="img/controls-1200.webp" srcset="img/controls-800.webp 800w, img/controls-1200.webp 1200w" sizes="(min-width: 768px) 66vw, 100vw" width="1200" height="675" loading="lazy" alt="The player with its touch controls showing and the Audio and Subtitles panel open.">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="proof" style="padding-top:0">
+    <div class="wrap">
+      <h2 id="proof">Tested, not just promised.</h2>
+      <div class="proof reveal">
+        <div><b>60 fps</b><span>in the 3D theatre on a laptop’s built-in graphics, up from 23</span></div>
+        <div><b>0.02 s</b><span>the most the sound drifted from the picture in testing</span></div>
+        <div><b>8 of 8</b><span>automated server tests passing</span></div>
+        <div><b>0</b><span>requests to other websites while you watch</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="avoid" style="padding-top:0">
+    <div class="wrap">
+      <h2 id="avoid">The usual ways to watch in the car are bad.</h2>
+      <div class="compare">
+        <div class="col dont reveal">
+          <h3>What people try</h3>
+          <ul>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg><div><b>“Free movie” websites</b><span>Pop-ups, fake download buttons, and they still need fast mobile data.</span></div></li>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg><div><b>Screen mirroring apps</b><span>Laggy picture, sound out of sync, often a paid app and an internet connection.</span></div></li>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg><div><b>Uploading to random cloud sites</b><span>Your private files end up on someone else’s server.</span></div></li>
+          </ul>
+        </div>
+        <div class="col do reveal">
+          <h3>Cinema 3D</h3>
+          <ul>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><div><b>Your own files</b><span>Streamed from your phone or laptop to the car, nowhere else.</span></div></li>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><div><b>Smooth on the car’s screen</b><span>A lighter picture mode starts by itself in the car’s browser.</span></div></li>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><div><b>A PIN if you want one</b><span>Keeps others on the same network out of your library.</span></div></li>
+          </ul>
+        </div>
+      </div>
+      <p class="lead">One more: only watch while parked. Treat it like the car’s own Theater.</p>
+    </div>
+  </section>
+
+  <section class="section" id="setup" aria-labelledby="how" style="padding-top:0">
+    <div class="wrap">
+      <h2 id="how">3 steps, about 15 minutes.</h2>
+      <div class="steps-grid">
+        <ol class="steps">
+          <li><div><h3>Install it on your laptop or phone</h3><p>Install <a href="https://nodejs.org/">Node.js</a>, download Cinema 3D and run <code translate="no">npm install</code>. On Android, use the Termux app. The <a href="https://github.com/Abhinav00234/tesla-3d-cinema#quick-start-on-a-computer">laptop guide</a> and <a href="https://github.com/Abhinav00234/tesla-3d-cinema/blob/main/docs/PHONE_TERMUX.md">phone guide</a> walk through every command.</p></div></li>
+          <li><div><h3>Add your movies and start it</h3><p>Drop your files in the movies folder, or point it at a USB stick. Run <code translate="no">npm start</code> and it shows the address to open.</p></div></li>
+          <li><div><h3>Open it in the car</h3><p>Connect the car to your phone’s hotspot, open the car’s browser and type the address. Pick a movie and a seat.</p></div></li>
+        </ol>
+        <figure class="phone reveal">
+          <img src="img/phone-server-600.webp" srcset="img/phone-server-400.webp 400w, img/phone-server-600.webp 600w" sizes="300px" width="600" height="700" loading="lazy" alt="An Android phone running the Cinema 3D server in Termux, showing the address to open in the car.">
+          <figcaption>The server running on an Android phone.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="est" style="padding-top:0">
+    <div class="wrap">
+      <h2 id="est">Get your setup estimate.</h2>
+      <p class="lead">2 questions. No email needed.</p>
+      <div class="estimate">
+        <form class="est-form" id="est-form">
+          <fieldset>
+            <legend>Where will your movies live?</legend>
+            <div class="choices">
+              <label class="choice"><input type="radio" name="device" value="laptop" checked><span><svg class="ic" aria-hidden="true"><use href="#i-laptop"/></svg>Laptop or PC</span></label>
+              <label class="choice"><input type="radio" name="device" value="phone"><span><svg class="ic" aria-hidden="true"><use href="#i-android-logo"/></svg>Android phone</span></label>
+              <label class="choice"><input type="radio" name="device" value="docker"><span><svg class="ic" aria-hidden="true"><use href="#i-shipping-container"/></svg>Home server</span></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>What kind of movie files do you have?</legend>
+            <div class="choices">
+              <label class="choice"><input type="radio" name="files" value="mp4" checked><span>MP4 (H.264)</span></label>
+              <label class="choice"><input type="radio" name="files" value="hevc"><span>4K, HEVC or x265</span></label>
+              <label class="choice"><input type="radio" name="files" value="unsure"><span>Not sure</span></label>
+            </div>
+          </fieldset>
+        </form>
+        <div class="result" aria-live="polite">
+          <p class="muted">Setup time</p>
+          <p class="time" id="est-time">About 10 minutes</p>
+          <ul id="est-notes"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="faq" style="padding-top:0">
+    <div class="wrap">
+      <h2 id="faq">Questions people ask.</h2>
+      <div class="faq">
+        <details><summary>Does it need internet in the car?<svg class="ic" aria-hidden="true"><use href="#i-caret-down"/></svg></summary><p>No. The car joins your phone’s hotspot and the movie goes straight from the phone to the car. Nothing is loaded from other websites, so no mobile data is used for the movie.</p></details>
+        <details><summary>Can I put my movies on the car’s USB stick?<svg class="ic" aria-hidden="true"><use href="#i-caret-down"/></svg></summary><p>Not the car’s own USB port: the car’s browser can’t read it. Plug the USB stick into an Android phone with a USB-C adapter instead, and the phone serves the movies to the car.</p></details>
+        <details><summary>Has it been tested in a real Tesla?<svg class="ic" aria-hidden="true"><use href="#i-caret-down"/></svg></summary><p>Not yet. It has been tested in desktop Chrome, on a laptop’s built-in graphics, and on an Android phone emulator. If you try it in your car, please share how it went using Get help.</p></details>
+        <details><summary>Which movie files work?<svg class="ic" aria-hidden="true"><use href="#i-caret-down"/></svg></summary><p>MP4, MKV, WebM, MOV, M4V and OGV. Files the car’s browser can’t play, usually 4K HEVC, are marked “Needs Converting” and can be turned into a copy that plays. The original file is not changed.</p></details>
+        <details><summary>Is it really free?<svg class="ic" aria-hidden="true"><use href="#i-caret-down"/></svg></summary><p>Yes. It’s open source under the ISC licence. There is no account, no subscription and nothing to buy.</p></details>
+        <details><summary>Can I watch while driving?<svg class="ic" aria-hidden="true"><use href="#i-caret-down"/></svg></summary><p>No. Only watch while parked, the same as the car’s own Theater.</p></details>
+        <details><summary>Is it legal?<svg class="ic" aria-hidden="true"><use href="#i-caret-down"/></svg></summary><p>Cinema 3D plays files you already have. It doesn’t download or share anything. Only play movies you have the right to watch.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="credits" style="padding-top:0">
+    <div class="wrap">
+      <h2 id="credits">Open source, and honest about it.</h2>
+      <div class="credits">
+        <div><b>ISC licence</b><p>Free to use, change and share. The full code is on <a href="https://github.com/Abhinav00234/tesla-3d-cinema">GitHub</a>.</p></div>
+        <div><b>Built on great work</b><p>The 3D theatre and surround sound come from the <a href="https://github.com/amitsikdar37/am1t_builds/tree/main/3D%20Theater%20Webplayer">3D Web Cinema Player</a> by Amit Sikdar.</p></div>
+        <div><b>Not affiliated with Tesla</b><p>Tesla is a trademark of Tesla, Inc. Film in the pictures: <a href="https://durian.blender.org/">Sintel</a>, Blender Foundation, CC BY 3.0.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section final" aria-labelledby="go" style="padding-top:0">
+    <div class="wrap">
+      <h2 id="go">Your next road trip stop has a cinema.</h2>
+      <p class="lead">Free, private, and ready in about 15 minutes.</p>
+      <a class="btn" href="#setup">Set it up free</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Cinema 3D, an open source project.</span>
+    <span><a href="https://github.com/Abhinav00234/tesla-3d-cinema/issues">Get help</a> &nbsp; <a href="https://github.com/Abhinav00234/tesla-3d-cinema">GitHub</a></span>
+  </div>
+</footer>
+
+<script>
+document.documentElement.classList.add('js');
+
+// Reveal sections as they scroll into view.
+const io = 'IntersectionObserver' in window && new IntersectionObserver((entries) => {
+  entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+}, { rootMargin: '0px 0px -10% 0px' });
+document.querySelectorAll('.reveal').forEach((el) => io ? io.observe(el) : el.classList.add('in'));
+
+// Setup estimate.
+const SETUP = {
+  laptop: { time: 'About 10 minutes', note: 'Install Node.js, download Cinema 3D, run two commands.' },
+  phone:  { time: 'About 20 minutes', note: 'Install Termux from F-Droid, then follow the phone guide. Keep the phone plugged in while you watch.' },
+  docker: { time: 'About 5 minutes',  note: 'One docker compose command, then point it at your movies folder. The Docker setup has not been tested yet.' },
+};
+const FILES = {
+  mp4:    'These play in the car as they are.',
+  hevc:   'The car usually can’t play these. Each one needs a one-time copy, which you start with one tap in the library.',
+  unsure: 'Just add them. Anything the car can’t play shows up as “Needs Converting”.',
+};
+const form = document.getElementById('est-form');
+function updateEstimate() {
+  const device = form.device.value, files = form.files.value;
+  document.getElementById('est-time').textContent = SETUP[device].time;
+  const notes = [SETUP[device].note, FILES[files]];
+  if (files !== 'mp4' && device === 'phone') notes.push('Converting is slow on a phone. Convert on a computer first, then copy the files to the phone.');
+  else if (files !== 'mp4') notes.push('Converting takes a while for a full movie. You can keep watching other movies while it runs.');
+  const list = document.getElementById('est-notes');
+  list.replaceChildren(...notes.map((n) => Object.assign(document.createElement('li'), { textContent: n })));
+}
+form.addEventListener('change', updateEstimate);
+updateEstimate();
+</script>
+</body>
+</html>
