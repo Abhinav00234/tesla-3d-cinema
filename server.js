@@ -53,6 +53,8 @@ function binaryRuns(bin) {
 
 function pickBinary(envName, loadBundled, systemName) {
   if (process.env[envName]) return process.env[envName];
+  // ffprobe-static calls process.exit() on Android instead of throwing, so don't load it there.
+  if (process.platform === 'android') return systemName;
   try {
     const bundled = loadBundled();
     if (bundled && fs.existsSync(bundled) && binaryRuns(bundled)) return bundled;

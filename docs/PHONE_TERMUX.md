@@ -2,7 +2,7 @@
 
 The phone holds the movies and runs the server. The car connects to the phone's WiFi hotspot and opens the phone's address. Nothing goes over mobile data.
 
-This guide has not been tried on a phone yet. The steps follow how Termux works, and the server falls back to Termux's own FFmpeg because the bundled one doesn't exist for Android. Please report what you find.
+These steps were tested on an Android 14 emulator with Termux 0.118.3 from F-Droid: install, library, streaming, separate sound tracks and converting all worked. They have not been tried on a real phone yet. The server uses Termux's own FFmpeg because the bundled one doesn't exist for Android.
 
 ## 1. Install Termux
 
@@ -43,9 +43,26 @@ Open `config.json` (for example with `nano config.json`) and set:
 "moviesDir": "~/storage/shared/Movies"
 ```
 
+### Movies on a USB stick or SD card
+
+Movies can stay on a USB stick (through a USB-C OTG adapter) or an SD card. Plug it in, then find its name:
+
+```bash
+df -h | grep storage
+```
+
+It shows up as something like `/storage/293D-1B0F`. Use that path in `config.json`:
+
+```json
+"moviesDir": "/storage/293D-1B0F/Movies"
+```
+
+Type the full path. `ls /storage` gives "Permission denied" in Termux, but the stick's own folder can still be read. The name changes if the stick is formatted again. Some phones don't let apps read USB sticks at all; if the library stays empty, copy the movies to the phone instead.
+
 ## 5. Start it
 
 ```bash
+cd ~/tesla-3d-cinema
 termux-wake-lock     # stops Android from putting Termux to sleep
 npm start
 ```

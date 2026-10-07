@@ -56,11 +56,12 @@ The page was also checked against Vercel's Web Interface Guidelines. That led to
 - `npm test`: 8 server tests (library, file safety, static files, byte ranges, subtitles and audio output, PIN flow, lockout, converting).
 - A scripted run in desktop Chrome with a real graphics card: open the library, play an H.264 movie, turn on subtitles, seek by double-tap, change seat and lights, switch to the flat view, pause, return to the library, convert an HEVC movie, play the copy, switch sound track. Sound stayed within 0.02 seconds of the picture in that run.
 - That Chrome has no HEVC support, so it behaves like a car browser for the "Needs Converting" path.
+- The Termux guide on an Android 14 emulator: install, library, byte ranges, a separate sound track and converting a short HEVC clip. It also read movies straight from an SD card. This found a crash on start: `ffprobe-static` calls `process.exit()` on Android, so the bundled FFmpeg packages are now skipped there.
 
 ## What was not tested
 
 - A real car. Frame rate in the 3D view, the full screen workaround and the exact formats the car's browser supports are unknown until someone tries.
-- Android with Termux.
+- A real Android phone, its hotspot, and USB sticks through OTG (the emulator used an SD card).
 - The Docker files (Docker was not available where this was written).
 - A full-length conversion. The conversion was tested with short clips.
 - Slow or lossy connections.
