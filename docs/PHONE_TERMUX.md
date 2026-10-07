@@ -9,7 +9,7 @@ These steps were tested on an Android 14 emulator with Termux 0.118.3 from F-Dro
 Install Termux (step 1 below), open it and paste:
 
 ```bash
-curl -fsSLo setup.sh https://raw.githubusercontent.com/Abhinav00234/tesla-3d-cinema/main/scripts/termux-setup.sh && bash setup.sh
+curl -fsSLo s.sh abhinav00234.github.io/tesla-3d-cinema/setup.sh && bash s.sh
 ```
 
 It installs everything, removes any old copy in `~/tesla-3d-cinema` (your movies are not touched), uses a USB stick or SD card if it has a `Movies` folder, and adds a `cinema` command. After that, turn on the hotspot and type `cinema` to start. Run the same command again any time to start fresh.
