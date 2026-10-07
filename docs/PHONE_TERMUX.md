@@ -4,6 +4,18 @@ The phone holds the movies and runs the server. The car connects to the phone's 
 
 These steps were tested on an Android 14 emulator with Termux 0.118.3 from F-Droid: install, library, streaming, separate sound tracks and converting all worked. They have not been tried on a real phone yet. The server uses Termux's own FFmpeg because the bundled one doesn't exist for Android.
 
+## Quick setup (one command)
+
+Install Termux (step 1 below), open it and paste:
+
+```bash
+curl -fsSLo setup.sh https://raw.githubusercontent.com/Abhinav00234/tesla-3d-cinema/main/scripts/termux-setup.sh && bash setup.sh
+```
+
+It installs everything, removes any old copy in `~/tesla-3d-cinema` (your movies are not touched), uses a USB stick or SD card if it has a `Movies` folder, and adds a `cinema` command. After that, turn on the hotspot and type `cinema` to start. Run the same command again any time to start fresh.
+
+The steps below do the same thing by hand.
+
 ## 1. Install Termux
 
 Get Termux from **F-Droid**, not the Play Store (that version is outdated): https://f-droid.org/packages/com.termux/
