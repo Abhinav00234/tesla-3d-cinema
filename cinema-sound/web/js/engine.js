@@ -1,65 +1,68 @@
 /* ================================================================
    Cinema Sound - engine.js
-   Makes a song sound like a movie soundtrack in a cinema hall.
+   Plays a song through the 3D cinema player's sound engine.
 
-   The idea comes from the 3D cinema player's sound engine
-   (js/audioManager.js): split the sound into 5.1 channels, place
-   each one on a speaker in the room, add the theatre reverb and send
-   the bass to a subwoofer. A song is only stereo, so it is first
-   upmixed to 5.1 the way cinema processors do it:
-     - centre    = what both sides share (the voice), band-limited
-     - surround  = what differs between the sides (the ambience), delayed
-     - LFE       = the shared low end below 110 Hz
-   The speakers are placed in the same room as the 3D cinema
-   (36 wide, 40 deep, screen 30 wide) and heard from the chosen seat.
+   This is the graph from js/audioManager.js, with the same speakers,
+   positions, levels, seats, reverb and compressor, built with plain
+   Web Audio nodes instead of three.js objects:
+     - front left and right at the edges of the screen
+     - centre behind the screen (only used by 5.1 files)
+     - subwoofer under the screen: the LFE channel plus the bass of the
+       left and right channels below 120 Hz
+     - surround left and right high on the side walls: the 5.1 surround
+       channels plus a quiet copy of left and right, 45 ms late
+     - the theatre reverb on left and right
+   You hear it from the seat you pick, as the 3D cinema camera does.
+   tools/compare.js renders a song through this and through the
+   three.js original and checks they come out the same.
+
+   Two ways to hear it:
+     - 'cinema': exactly as the 3D cinema (HRTF, made for headphones)
+     - 'car':    the same mix, but the surround speakers are encoded the
+                 way car and home surround systems read them, so the
+                 car's own sound system sends them to its rear speakers.
 
    The same graph is used for the live preview (AudioContext) and for
    converting (OfflineAudioContext), so what you hear is what you get.
-   Plain script, no modules: the Android app loads it from file://.
+   Plain script, no modules: the Android app loads it as a classic script.
    ================================================================ */
 (function () {
   'use strict';
 
   // The 3D cinema's room (js/config.js)
-  const ROOM_W = 36, ROOM_D = 40, SCR_W = 30, SCR_Z = -18, SCR_Y = 10.8;
-  // Room units to metres, for the time sound takes to reach the seat
-  const METRES_PER_UNIT = 0.6;
-  const SPEED_OF_SOUND = 343;
+  const ROOM_W = 36, ROOM_H = 23;
+  const SCR_W = 30, SCR_Z = -18, SCR_Y = 10.8;
+  const BASE_PITCH = 0.15;
 
-  const HALLS = {
-    small:    { label: 'Screening room', decay: 1.2, wet: 0.13, preDelay: 0.012, shape: 3.2 },
-    standard: { label: 'Cinema',         decay: 2.2, wet: 0.18, preDelay: 0.022, shape: 3.6 },
-    imax:     { label: 'IMAX',           decay: 3.4, wet: 0.24, preDelay: 0.034, shape: 4.0 },
-  };
-
-  // Where the listener sits, and how the seat changes the mix
+  // The 3D cinema's seats (js/ui.js): camera position and where it looks
   const SEATS = {
-    front:  { label: 'Front row', z: -7, eye: 3.2, wet: 0.7,  surround: 0.85 },
-    middle: { label: 'Middle',    z: 3,  eye: 5.5, wet: 1.0,  surround: 1.0 },
-    back:   { label: 'Back row',  z: 13, eye: 8.0, wet: 1.35, surround: 1.15 },
+    center: { label: 'Middle',    position: [0, 2.43, 4.66],     yaw: 0,     pitch: 0 },
+    front:  { label: 'Front row', position: [0, 0.99, -1.82],    yaw: 0,     pitch: 0.31 },
+    back:   { label: 'Back row',  position: [0, 4.11, 12.22],    yaw: 0,     pitch: 0.03 },
+    side:   { label: 'Left side', position: [-11.5, 2.43, 4.66], yaw: -0.39, pitch: 0.10 },
   };
 
-  // Speakers: screen channels behind the screen, surround arrays on the
-  // side walls and the back wall, the sub under the screen.
+  // The 3D cinema's speakers (js/audioManager.js)
   const SPEAKERS = {
-    fl:  [-SCR_W / 2 + 1, SCR_Y, SCR_Z],
-    c:   [0, SCR_Y, SCR_Z],
-    fr:  [SCR_W / 2 - 1, SCR_Y, SCR_Z],
-    lfe: [0, 0.5, SCR_Z + 2],
-    sl:  [-ROOM_W / 2 + 1, 13, 2],
-    sr:  [ROOM_W / 2 - 1, 13, 2],
-    bl:  [-ROOM_W / 4, 14, ROOM_D / 2 - 2],
-    br:  [ROOM_W / 4, 14, ROOM_D / 2 - 2],
+    fl:  { position: [-SCR_W / 2 - 2, SCR_Y, SCR_Z],     ref: 12 },
+    fr:  { position: [SCR_W / 2 + 2, SCR_Y, SCR_Z],      ref: 12 },
+    c:   { position: [0, SCR_Y, SCR_Z],                 ref: 12 },
+    lfe: { position: [0, 0.5, SCR_Z + 2],                ref: 12 },
+    sl:  { position: [-ROOM_W / 2 + 1, ROOM_H * 0.7, 5], ref: 8 },
+    sr:  { position: [ROOM_W / 2 - 1, ROOM_H * 0.7, 5],  ref: 8 },
   };
 
+  // Each slider in the middle (0.5) gives the 3D cinema's own level
   const DEFAULTS = {
-    hall: 'standard',
-    seat: 'middle',
-    output: 'headphones',  // or 'speakers'
-    bass: 0.6,             // 0..1, subwoofer level
-    surround: 0.6,         // 0..1, how much comes from around you
-    echo: 0.5,             // 0..1, how much of the hall you hear
+    seat: 'center',
+    output: 'cinema',  // or 'car'
+    bass: 0.5,
+    surround: 0.5,
+    echo: 0.5,
   };
+
+  const REVERB_SECONDS = 3.5;
+  const REVERB_DECAY = 4.0;
 
   // Small seeded random, so every conversion of a song comes out the same
   function random(seed) {
@@ -73,22 +76,16 @@
     };
   }
 
-  // Theatre reverb: a few early reflections off the walls, then a
-  // decaying diffuse tail. Left and right differ so the hall feels wide.
-  function impulseResponse(ctx, hall) {
-    const rate = ctx.sampleRate;
-    const length = Math.floor(rate * hall.decay);
-    const ir = ctx.createBuffer(2, length, rate);
+  // The theatre reverb's impulse response, made the way the 3D cinema
+  // makes it (decaying noise), but from a fixed seed
+  function impulseResponse(ctx) {
+    const length = Math.floor(ctx.sampleRate * REVERB_SECONDS);
+    const ir = ctx.createBuffer(2, length, ctx.sampleRate);
     for (let ch = 0; ch < 2; ch++) {
       const data = ir.getChannelData(ch);
       const rnd = random(1234 + ch * 777);
       for (let i = 0; i < length; i++) {
-        data[i] = (rnd() * 2 - 1) * Math.pow(1 - i / length, hall.shape);
-      }
-      // Wall reflections in the first 80 ms
-      for (let k = 0; k < 8; k++) {
-        const at = Math.floor(rate * (0.008 + rnd() * 0.072));
-        data[at] += (rnd() > 0.5 ? 1 : -1) * (0.9 - k * 0.08);
+        data[i] = (rnd() * 2 - 1) * Math.pow(1 - i / length, REVERB_DECAY);
       }
     }
     return ir;
@@ -100,145 +97,188 @@
     return g;
   }
 
-  function filter(ctx, type, frequency, q) {
-    const f = ctx.createBiquadFilter();
-    f.type = type;
-    f.frequency.value = frequency;
-    if (q !== undefined) f.Q.value = q;
-    return f;
+  function setParam(param, value) {
+    param.value = value;
   }
 
-  // Builds the cinema between `input` (any channel count) and `output`.
-  // Returns { tail } - seconds of reverb left after the song ends.
-  function build(ctx, input, output, options) {
+  // Where the seat's camera looks, as three.js turns it (Euler XYZ)
+  function seatFrame(seat) {
+    const p = BASE_PITCH + seat.pitch, y = seat.yaw;
+    const forward = [-Math.sin(y), Math.cos(y) * Math.sin(p), -Math.cos(y) * Math.cos(p)];
+    const up = [0, Math.cos(p), Math.sin(p)];
+    const right = [
+      forward[1] * up[2] - forward[2] * up[1],
+      forward[2] * up[0] - forward[0] * up[2],
+      forward[0] * up[1] - forward[1] * up[0],
+    ];
+    return { position: seat.position, forward, up, right };
+  }
+
+  function placeListener(ctx, frame) {
+    const l = ctx.listener;
+    const [px, py, pz] = frame.position, [fx, fy, fz] = frame.forward, [ux, uy, uz] = frame.up;
+    if (l.positionX) {
+      setParam(l.positionX, px); setParam(l.positionY, py); setParam(l.positionZ, pz);
+      setParam(l.forwardX, fx); setParam(l.forwardY, fy); setParam(l.forwardZ, fz);
+      setParam(l.upX, ux); setParam(l.upY, uy); setParam(l.upZ, uz);
+    } else {
+      l.setPosition(px, py, pz);
+      l.setOrientation(fx, fy, fz, ux, uy, uz);
+    }
+  }
+
+  // Builds the cinema between `input` and `output`. `channels` is the
+  // song's channel count: 5.1 files use all six speakers as in the cinema.
+  function build(ctx, input, output, options, channels) {
     const o = Object.assign({}, DEFAULTS, options);
-    const hall = HALLS[o.hall] || HALLS.standard;
-    const seat = SEATS[o.seat] || SEATS.middle;
-    const listener = [0, seat.eye, seat.z];
+    const seat = SEATS[o.seat] || SEATS.center;
+    const frame = seatFrame(seat);
+    const bass = o.bass * 2, surround = o.surround * 2, echo = o.echo * 2;
 
-    // Mono songs go to both sides, 5.1 files are folded to stereo first
-    const stereo = ctx.createGain();
-    stereo.channelCount = 2;
-    stereo.channelCountMode = 'explicit';
-    stereo.channelInterpretation = 'speakers';
-    input.connect(stereo);
-    const split = ctx.createChannelSplitter(2);
-    stereo.connect(split);
+    // Mono songs go to both front speakers, the rest is taken channel by channel
+    let feed = input;
+    if ((channels || 2) < 2) {
+      feed = ctx.createGain();
+      feed.channelCount = 2;
+      feed.channelCountMode = 'explicit';
+      feed.channelInterpretation = 'speakers';
+      input.connect(feed);
+    }
+    const split = ctx.createChannelSplitter(6);
+    feed.connect(split);
 
-    const left = gain(ctx, 1), right = gain(ctx, 1);
-    split.connect(left, 0);
-    split.connect(right, 1);
-
-    // What both sides share
-    const mid = gain(ctx, 0.5);
-    left.connect(mid); right.connect(mid);
-    // What differs between them
-    const side = gain(ctx, 0.5);
-    const rightInverted = gain(ctx, -1);
-    left.connect(side); right.connect(rightInverted); rightInverted.connect(side);
-
+    // Master compressor, as in the cinema
     const master = ctx.createGain();
-    const xCurve = filter(ctx, 'highshelf', 9000); // cinemas roll off the top a little
-    xCurve.gain.value = -2;
-    const compressor = ctx.createDynamicsCompressor(); // as in the cinema player
-    compressor.threshold.value = -10;
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -6;
     compressor.knee.value = 15;
     compressor.ratio.value = 3;
     compressor.attack.value = 0.005;
-    compressor.release.value = 0.15;
-    master.connect(xCurve);
-    xCurve.connect(compressor);
+    compressor.release.value = 0.1;
+    master.connect(compressor);
     compressor.connect(output);
 
-    // Puts a channel on its speaker as heard from the seat: direction,
-    // loudness from the distance, and the delay of sound travelling.
-    const distances = {};
-    for (const name in SPEAKERS) {
-      const p = SPEAKERS[name];
-      distances[name] = Math.hypot(p[0] - listener[0], p[1] - listener[1], p[2] - listener[2]);
+    // The car mode's two outputs: what goes to the left and right channel
+    let carLeft = null, carRight = null;
+    if (o.output === 'car') {
+      const merge = ctx.createChannelMerger(2);
+      carLeft = ctx.createGain(); carRight = ctx.createGain();
+      carLeft.connect(merge, 0, 0); carRight.connect(merge, 0, 1);
+      merge.connect(master);
+    } else {
+      placeListener(ctx, frame);
     }
-    const nearest = Math.min.apply(null, Object.values(distances));
 
-    function speaker(name, source, level) {
-      const p = SPEAKERS[name];
-      const rel = [p[0] - listener[0], p[1] - listener[1], p[2] - listener[2]];
-      const d = distances[name];
-
-      const loud = gain(ctx, level * Math.pow(nearest / d, 0.6));
-      const delay = ctx.createDelay(1);
-      delay.delayTime.value = (d - nearest) * METRES_PER_UNIT / SPEED_OF_SOUND;
-      source.connect(loud);
-      loud.connect(delay);
-
-      if (o.output === 'headphones') {
+    function speaker(name, source) {
+      const s = SPEAKERS[name];
+      if (o.output !== 'car') {
+        // As three.js PositionalAudio: HRTF, exponential distance model
         const pan = ctx.createPanner();
         pan.panningModel = 'HRTF';
-        pan.distanceModel = 'inverse';
-        pan.refDistance = 1;
-        pan.rolloffFactor = 0; // loudness is set above
+        pan.distanceModel = 'exponential';
+        pan.refDistance = s.ref;
+        pan.rolloffFactor = 1;
         if (pan.positionX) {
-          pan.positionX.value = rel[0]; pan.positionY.value = rel[1]; pan.positionZ.value = rel[2];
+          setParam(pan.positionX, s.position[0]); setParam(pan.positionY, s.position[1]); setParam(pan.positionZ, s.position[2]);
         } else {
-          pan.setPosition(rel[0], rel[1], rel[2]);
+          pan.setPosition(s.position[0], s.position[1], s.position[2]);
         }
-        delay.connect(pan);
+        source.connect(pan);
         pan.connect(master);
+        return;
+      }
+
+      // Car: the same distance loudness, and a direction a stereo car
+      // system understands
+      const v = s.position.map((x, i) => x - frame.position[i]);
+      const d = Math.hypot(v[0], v[1], v[2]);
+      const loud = gain(ctx, Math.pow(Math.max(d, s.ref) / s.ref, -1));
+      source.connect(loud);
+      if (name === 'sl' || name === 'sr') {
+        // Matrix surround (as Dolby Pro Logic II encodes it): surround
+        // sound goes into both channels with opposite signs. Car and home
+        // surround processing finds that and plays it from the rear.
+        const near = gain(ctx, name === 'sl' ? -0.8718 : 0.8718);
+        const far = gain(ctx, name === 'sl' ? 0.4899 : -0.4899);
+        loud.connect(near); loud.connect(far);
+        near.connect(name === 'sl' ? carLeft : carRight);
+        far.connect(name === 'sl' ? carRight : carLeft);
       } else {
-        // On speakers there is nothing behind you, so surround channels
-        // go wide to the sides instead.
-        const pan = ctx.createStereoPanner();
-        const across = rel[0] / Math.hypot(rel[0], rel[2]);
-        pan.pan.value = Math.max(-1, Math.min(1, across * (rel[2] > 0 ? 1 : 0.9)));
-        delay.connect(pan);
-        pan.connect(master);
+        const across = v[0] * frame.right[0] + v[1] * frame.right[1] + v[2] * frame.right[2];
+        const ahead = v[0] * frame.forward[0] + v[1] * frame.forward[1] + v[2] * frame.forward[2];
+        const angle = Math.atan2(across, ahead);
+        // Tangent law for speakers 30 degrees either side (as in a car or
+        // a stereo setup): wider than that goes all the way to one side
+        const pan = Math.abs(angle) >= Math.PI / 2 ? Math.sign(angle)
+          : Math.max(-1, Math.min(1, Math.tan(angle) / Math.tan(Math.PI / 6)));
+        // Equal-power, as a StereoPannerNode does
+        const x = (pan + 1) / 2;
+        const toLeft = gain(ctx, Math.cos(x * Math.PI / 2));
+        const toRight = gain(ctx, Math.sin(x * Math.PI / 2));
+        loud.connect(toLeft); loud.connect(toRight);
+        toLeft.connect(carLeft); toRight.connect(carRight);
       }
     }
 
-    // Screen channels
-    speaker('fl', left, 0.75);
-    speaker('fr', right, 0.75);
-    const voice = filter(ctx, 'highpass', 140, 0.7);
-    const voiceTop = filter(ctx, 'lowpass', 8000, 0.7);
-    mid.connect(voice); voice.connect(voiceTop);
-    speaker('c', voiceTop, 0.65);
-
-    // Subwoofer: the shared low end, filtered steeply
-    const sub1 = filter(ctx, 'lowpass', 110, 0.7);
-    const sub2 = filter(ctx, 'lowpass', 110, 0.7);
-    mid.connect(sub1); sub1.connect(sub2);
-    speaker('lfe', sub2, o.bass * 1.8);
-
-    // Surrounds: the ambience, band-limited and a little late, as in a
-    // cinema processor. Each wall gets its own delay so they don't fuse.
-    const amb = filter(ctx, 'lowpass', 7000, 0.7);
-    const ambLow = filter(ctx, 'highpass', 120, 0.7);
-    side.connect(amb); amb.connect(ambLow);
-    const surroundLevel = o.surround * seat.surround * 1.3;
-    function late(seconds, sign) {
-      const d = ctx.createDelay(1);
-      d.delayTime.value = seconds;
-      const g = gain(ctx, sign);
-      ambLow.connect(d); d.connect(g);
-      return g;
-    }
-    speaker('sl', late(0.018, 1), surroundLevel);
-    speaker('sr', late(0.021, -1), surroundLevel);
-    speaker('bl', late(0.027, 1), surroundLevel * 0.8);
-    speaker('br', late(0.031, -1), surroundLevel * 0.8);
-
-    // The hall
-    const preDelay = ctx.createDelay(1);
-    preDelay.delayTime.value = hall.preDelay;
+    // Reverb on left and right only, so it doesn't muddy the centre
     const convolver = ctx.createConvolver();
-    convolver.normalize = true;
-    convolver.buffer = impulseResponse(ctx, hall);
-    const wet = gain(ctx, hall.wet * seat.wet * (o.echo * 2));
-    stereo.connect(preDelay);
-    preDelay.connect(convolver);
-    convolver.connect(wet);
-    wet.connect(master);
+    convolver.buffer = impulseResponse(ctx);
+    const reverbGain = gain(ctx, 0.08 * echo);
+    const reverbMix = ctx.createGain();
+    split.connect(reverbMix, 0);
+    split.connect(reverbMix, 1);
+    reverbMix.connect(convolver);
+    convolver.connect(reverbGain);
+    if (o.output === 'car') {
+      const rs = ctx.createChannelSplitter(2);
+      reverbGain.connect(rs);
+      rs.connect(carLeft, 0); rs.connect(carRight, 1);
+    } else {
+      reverbGain.connect(master);
+    }
 
-    return { tail: hall.decay };
+    // Front left and right
+    const flGain = gain(ctx, 0.8);
+    split.connect(flGain, 0);
+    speaker('fl', flGain);
+    const frGain = gain(ctx, 0.8);
+    split.connect(frGain, 1);
+    speaker('fr', frGain);
+
+    // Centre (dialogue in 5.1 files)
+    const centerGain = gain(ctx, 1.2);
+    split.connect(centerGain, 2);
+    speaker('c', centerGain);
+
+    // Subwoofer: LFE plus bass management of left and right
+    const subFilter = ctx.createBiquadFilter();
+    subFilter.type = 'lowpass';
+    subFilter.frequency.value = 120;
+    const subGain = gain(ctx, 1.0 * bass);
+    split.connect(subGain, 3);
+    const bassMix = gain(ctx, 0.5);
+    split.connect(bassMix, 0);
+    split.connect(bassMix, 1);
+    bassMix.connect(subFilter);
+    subFilter.connect(subGain);
+    speaker('lfe', subGain);
+
+    // Surrounds: the 5.1 surround channel plus a delayed bleed of the front
+    for (const [name, ch, front] of [['sl', 4, 0], ['sr', 5, 1]]) {
+      const g = gain(ctx, 0.7);
+      const own = gain(ctx, surround);
+      split.connect(own, ch);
+      own.connect(g);
+      const delay = ctx.createDelay();
+      delay.delayTime.value = 0.045;
+      const bleed = gain(ctx, 0.15 * surround);
+      split.connect(delay, front);
+      delay.connect(bleed);
+      bleed.connect(g);
+      speaker(name, g);
+    }
+
+    return { tail: REVERB_SECONDS };
   }
 
   function decode(arrayBuffer, sampleRate) {
@@ -250,14 +290,13 @@
     });
   }
 
-  // Renders the whole song through the cinema. Resolves to an AudioBuffer.
+  // Renders the whole song through the cinema. Resolves to a stereo AudioBuffer.
   function render(buffer, options, onProgress) {
-    const tail = (HALLS[(options || {}).hall] || HALLS.standard).decay;
-    const length = Math.ceil(buffer.length + tail * buffer.sampleRate);
+    const length = Math.ceil(buffer.length + REVERB_SECONDS * buffer.sampleRate);
     const ctx = new OfflineAudioContext(2, length, buffer.sampleRate);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    build(ctx, source, ctx.destination, options);
+    build(ctx, source, ctx.destination, options, buffer.numberOfChannels);
     source.start(0);
 
     let timer = null;
@@ -316,5 +355,5 @@
     return new Uint8Array(bytes);
   }
 
-  window.CinemaEngine = { HALLS, SEATS, DEFAULTS, build, decode, render, toWav };
+  window.CinemaEngine = { SEATS, DEFAULTS, build, decode, render, toWav, impulseResponse };
 })();

@@ -10,7 +10,7 @@
 
   const E = window.CinemaEngine;
   const SAMPLE_RATE = 44100;
-  const STORE_KEY = 'cinema-sound-settings';
+  const STORE_KEY = 'cinema-sound-settings-2'; // -2: the 3D Cinema engine
   const $ = (id) => document.getElementById(id);
 
   const settings = Object.assign({}, E.DEFAULTS, loadSettings());
@@ -51,9 +51,10 @@
     document.querySelectorAll('input[type=range][data-setting]').forEach((r) => {
       r.value = settings[r.dataset.setting];
     });
-    $('output-hint').textContent = settings.output === 'headphones'
-      ? 'Sound is placed all around you, including behind. Best with headphones or earbuds.'
-      : 'A wide cinema sound for phone, car or room speakers.';
+    $('output-hint').textContent = settings.output === 'car'
+      ? 'The surround speakers are mixed in so the car\'s own sound system can send them to its rear speakers. '
+        + 'Turn on the car\'s surround setting if it has one (on a Tesla: Immersive Sound, in the audio settings).'
+      : 'Exactly what the 3D Cinema plays. Its 3D sound is made for headphones: through car speakers it doesn\'t reach the rear speakers, so use Car speakers there.';
   }
 
   document.querySelectorAll('.seg[data-setting]').forEach((seg) => {
@@ -80,6 +81,12 @@
       rebuildTimer = setTimeout(() => { if (player) play(currentTime()); }, 120);
     }
   }
+
+  $('reset-btn').addEventListener('click', () => {
+    if (busy) return;
+    settings.bass = settings.surround = settings.echo = 0.5;
+    changed();
+  });
 
   $('compare').addEventListener('click', (e) => {
     const b = e.target.closest('button');
@@ -238,7 +245,7 @@
     const out = c.createGain();
     out.connect(c.destination);
     if (mode === 'cinema') {
-      E.build(c, source, out, settings);
+      E.build(c, source, out, settings, song.buffer.numberOfChannels);
     } else {
       source.connect(out);
     }

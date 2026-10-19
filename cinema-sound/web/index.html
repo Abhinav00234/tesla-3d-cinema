@@ -11,7 +11,7 @@
   <main class="app">
     <header class="top">
       <h1>Cinema Sound</h1>
-      <p class="lede">Hear any song the way a movie sounds in a cinema hall: on the big screen speakers, with surround all around you, deep bass and the echo of the room.</p>
+      <p class="lede">Hear any song through the sound system of the 3D Cinema: the speakers by the screen, the subwoofer, the surround speakers on the walls and the echo of the hall.</p>
     </header>
 
     <section class="card" id="pick-card">
@@ -35,28 +35,20 @@
 
     <section class="card" id="settings" aria-label="Cinema settings">
       <div class="field">
-        <span class="label" id="hall-label">Hall</span>
-        <div class="seg" role="radiogroup" aria-labelledby="hall-label" data-setting="hall">
-          <button type="button" role="radio" data-value="small">Screening room</button>
-          <button type="button" role="radio" data-value="standard">Cinema</button>
-          <button type="button" role="radio" data-value="imax">IMAX</button>
-        </div>
-      </div>
-
-      <div class="field">
         <span class="label" id="seat-label">Your seat</span>
         <div class="seg" role="radiogroup" aria-labelledby="seat-label" data-setting="seat">
           <button type="button" role="radio" data-value="front">Front row</button>
-          <button type="button" role="radio" data-value="middle">Middle</button>
+          <button type="button" role="radio" data-value="center">Middle</button>
           <button type="button" role="radio" data-value="back">Back row</button>
+          <button type="button" role="radio" data-value="side">Left side</button>
         </div>
       </div>
 
       <div class="field">
         <span class="label" id="output-label">Listening on</span>
         <div class="seg" role="radiogroup" aria-labelledby="output-label" data-setting="output">
-          <button type="button" role="radio" data-value="headphones">Headphones</button>
-          <button type="button" role="radio" data-value="speakers">Speakers</button>
+          <button type="button" role="radio" data-value="cinema">Headphones</button>
+          <button type="button" role="radio" data-value="car">Car speakers</button>
         </div>
         <p class="hint" id="output-hint"></p>
       </div>
@@ -73,6 +65,7 @@
         <span class="label">Hall echo</span>
         <input type="range" min="0" max="1" step="0.05" data-setting="echo">
       </label>
+      <p class="hint">With every slider in the middle, the song sounds exactly as in the 3D Cinema. <button class="link" id="reset-btn" type="button">Back to the middle</button></p>
     </section>
 
     <section class="card" id="preview" aria-label="Preview">
