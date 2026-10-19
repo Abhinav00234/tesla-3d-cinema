@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A music note in front of a curved cinema screen -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#3E6AE1"
+        android:pathData="M30,36 Q54,30 78,36 L78,42 Q54,36 30,42 Z" />
+    <path
+        android:fillColor="#F4F4F4"
+        android:pathData="M56,46 L56,64.5 A7,7 0,1 0,60 70.8 L60,54 L68,54 L68,46 Z" />
+</vector>

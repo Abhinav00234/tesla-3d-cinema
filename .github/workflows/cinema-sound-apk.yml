@@ -1,0 +1,37 @@
+name: Cinema Sound APK
+
+on:
+  push:
+    paths:
+      - 'cinema-sound/**'
+      - '.github/workflows/cinema-sound-apk.yml'
+  pull_request:
+    paths:
+      - 'cinema-sound/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cinema-sound/android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build the APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cinema-sound-apk
+          path: cinema-sound/android/app/build/outputs/apk/debug/app-debug.apk

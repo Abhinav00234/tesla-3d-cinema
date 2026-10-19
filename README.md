@@ -27,6 +27,10 @@ Not affiliated with or endorsed by Tesla, Inc.
 - **PIN lock** for when other people share your network.
 - Works with no internet: nothing is loaded from other websites.
 
+## Cinema Sound app for Android
+
+[`cinema-sound/`](cinema-sound/README.md) is a separate Android app built on the same sound engine. It makes any song sound like a movie in a cinema hall: the song is split into cinema channels, placed on the theatre's speakers and heard from the seat you pick, then saved as a new file.
+
 ## What you need
 
 - A computer (Windows, macOS or Linux) or an Android phone to hold the movies and run the server.
