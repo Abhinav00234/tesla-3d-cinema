@@ -1,8 +1,9 @@
 /* ================================================================
    Cinema Sound - app.js
    Picking a song, the live preview and saving the converted file.
-   In the Android app, saving goes through the `CinemaAndroid` bridge
-   (MainActivity.java); in a normal browser the file is downloaded.
+   In the Android app, saving and the list of songs on the phone go
+   through the `CinemaAndroid` bridge (MainActivity.java); in a normal
+   browser the file is downloaded and songs are picked as files.
    ================================================================ */
 (function () {
   'use strict';
@@ -20,6 +21,8 @@
   let mode = 'cinema';      // or 'original'
   let busy = false;
   let rebuildTimer = null;
+  let phoneSongs = [];      // from the Android music library
+  let currentSongId = null;
 
   function loadSettings() {
     try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (err) { return {}; }
@@ -89,32 +92,130 @@
   // ── Choosing a song ────────────────────────────────────────────
   $('pick-btn').addEventListener('click', () => { if (!busy) $('file-input').click(); });
 
-  $('file-input').addEventListener('change', async () => {
+  $('file-input').addEventListener('change', () => {
     const file = $('file-input').files[0];
     $('file-input').value = '';
     if (!file) return;
+    currentSongId = null;
+    showSongs();
+    openSong(file.name.replace(/\.[^.]+$/, ''), () => file.arrayBuffer());
+  });
+
+  // `read` resolves to the file's bytes
+  let opening = 0;
+  async function openSong(name, read) {
+    if (busy) return;
+    const ticket = ++opening;
     stop();
     position = 0;
     song = null;
     updateTransport();
     setStatus($('save-status'), '');
-    setStatus($('status'), 'Opening ' + file.name + '…');
+    setStatus($('status'), 'Opening ' + name + '…');
     try {
-      const bytes = await file.arrayBuffer();
+      const bytes = await read();
       const buffer = await E.decode(bytes, SAMPLE_RATE);
-      song = { name: file.name.replace(/\.[^.]+$/, ''), buffer };
+      if (ticket !== opening) return; // another song was picked meanwhile
+      song = { name, buffer };
       $('song-name').textContent = song.name;
       $('song-length').textContent = clock(buffer.duration);
       $('song').hidden = false;
-      $('pick-label').textContent = 'Choose another song';
+      $('pick-label').textContent = 'Choose another song file';
       setStatus($('status'), buffer.duration > 15 * 60
         ? 'This is a long track. Converting it needs a lot of memory and may fail on older phones.'
         : '');
     } catch (err) {
+      if (ticket !== opening) return;
       $('song').hidden = true;
-      setStatus($('status'), 'This file could not be opened. Try an MP3, M4A, WAV, FLAC or OGG file.', true);
+      setStatus($('status'), 'This song could not be opened. Try an MP3, M4A, WAV, FLAC or OGG file.', true);
     }
     updateTransport();
+  }
+
+  // ── Songs on the phone (Android app only) ──────────────────────
+  const bridge = window.CinemaAndroid;
+  if (bridge && bridge.findSongs) {
+    // The song list is the main way in; picking a file comes second
+    $('find-btn').hidden = false;
+    $('find-btn').classList.add('btn-primary');
+    $('pick-btn').classList.remove('btn-primary');
+    $('library').after($('pick-btn'));
+  }
+
+  $('find-btn').addEventListener('click', () => {
+    $('find-btn').disabled = true;
+    setStatus($('status'), 'Looking for songs…');
+    bridge.findSongs();
+  });
+
+  // Called by MainActivity with a JSON list, or null and why not
+  window.cinemaSongs = (json, problem) => {
+    $('find-btn').disabled = false;
+    if (problem === 'denied') {
+      setStatus($('status'), '');
+      $('status').append('Cinema Sound needs access to your music to list your songs. ');
+      const a = document.createElement('button');
+      a.className = 'link';
+      a.textContent = 'Open settings';
+      a.addEventListener('click', () => bridge.openSettings());
+      $('status').append(a);
+      $('status').classList.add('error');
+      return;
+    }
+    if (problem) {
+      setStatus($('status'), 'Your songs could not be listed. You can still choose a song file.', true);
+      return;
+    }
+    phoneSongs = JSON.parse(json);
+    setStatus($('status'), phoneSongs.length ? '' : 'No songs were found on this phone.');
+    $('library').hidden = !phoneSongs.length;
+    $('find-btn').hidden = !!phoneSongs.length;
+    showSongs();
+  };
+
+  const LIST_LIMIT = 150;
+  function showSongs() {
+    if ($('library').hidden) return;
+    const q = $('search').value.trim().toLowerCase();
+    const found = q
+      ? phoneSongs.filter((s) => (s.title + ' ' + s.artist).toLowerCase().includes(q))
+      : phoneSongs;
+    const list = $('songs');
+    list.textContent = '';
+    for (const s of found.slice(0, LIST_LIMIT)) {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.id = s.id;
+      b.setAttribute('aria-current', String(s.id === currentSongId));
+      const t = document.createElement('span');
+      t.className = 't';
+      t.textContent = s.title;
+      const a = document.createElement('span');
+      a.className = 'a';
+      a.textContent = (s.artist ? s.artist + ' · ' : '') + clock(s.ms / 1000);
+      b.append(t, a);
+      li.append(b);
+      list.append(li);
+    }
+    $('songs-note').textContent = found.length > LIST_LIMIT
+      ? 'Showing ' + LIST_LIMIT + ' of ' + found.length + ' songs. Search to find the others.'
+      : found.length + (found.length === 1 ? ' song' : ' songs');
+  }
+
+  $('search').addEventListener('input', showSongs);
+
+  $('songs').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b || busy) return;
+    const s = phoneSongs.find((x) => String(x.id) === b.dataset.id);
+    if (!s) return;
+    currentSongId = s.id;
+    showSongs();
+    openSong(s.title, () => fetch('song/' + s.id).then((r) => {
+      if (!r.ok) throw new Error('not found');
+      return r.arrayBuffer();
+    }));
   });
 
   // ── Preview ────────────────────────────────────────────────────

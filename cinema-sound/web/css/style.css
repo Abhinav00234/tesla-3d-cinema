@@ -131,4 +131,26 @@ input[type="range"]:disabled { opacity: 0.4; cursor: default; }
 .progress { height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
 .bar { height: 100%; width: 0; background: var(--accent); transition: width 0.2s linear; }
 
+.library { display: flex; flex-direction: column; gap: 8px; }
+input[type="search"] {
+  width: 100%; min-height: var(--tap); padding: 0 16px;
+  border: none; border-radius: var(--radius);
+  background: var(--surface-2); color: var(--text);
+  font: inherit; font-size: 16px;
+}
+input[type="search"]::placeholder { color: var(--text-3); }
+.songs { list-style: none; max-height: 55vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.songs button {
+  width: 100%; min-height: var(--tap); padding: 8px 12px;
+  border-radius: var(--radius); text-align: left;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  transition: background var(--ease);
+}
+.songs button:active { background: var(--surface-2); }
+.songs button[aria-current="true"] { background: var(--accent-soft); }
+.songs .t, .songs .a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.songs .t { font-size: 15px; font-weight: 500; }
+.songs .a { font-size: 13px; color: var(--text-3); }
+.link { color: var(--text); text-decoration: underline; font-weight: 500; }
+
 .foot { color: var(--text-3); font-size: 13px; text-align: center; line-height: 1.5; padding: 8px 0; }

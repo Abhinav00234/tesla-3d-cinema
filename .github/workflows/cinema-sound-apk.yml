@@ -10,6 +10,9 @@ on:
       - 'cinema-sound/**'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -35,3 +38,18 @@ jobs:
         with:
           name: cinema-sound-apk
           path: cinema-sound/android/app/build/outputs/apk/debug/app-debug.apk
+
+      # Keeps the newest APK on the "cinema-sound" release, so it has a
+      # fixed download link:
+      # https://github.com/<owner>/<repo>/releases/download/cinema-sound/CinemaSound.apk
+      - name: Publish the APK
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk CinemaSound.apk
+          if ! gh release view cinema-sound >/dev/null 2>&1; then
+            gh release create cinema-sound --target "$GITHUB_SHA" --title "Cinema Sound for Android" \
+              --notes "Makes any song sound like a movie in a cinema hall. Download CinemaSound.apk below and open it on your phone (Android 8 or newer). This release always holds the newest build."
+          fi
+          gh release upload cinema-sound CinemaSound.apk --clobber

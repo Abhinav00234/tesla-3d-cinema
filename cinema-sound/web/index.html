@@ -17,8 +17,17 @@
     <section class="card" id="pick-card">
       <button class="btn btn-primary btn-wide" id="pick-btn" type="button">
         <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6Z"/></svg>
-        <span id="pick-label">Choose a song</span>
+        <span id="pick-label">Choose a song file</span>
       </button>
+      <button class="btn btn-wide" id="find-btn" type="button" hidden>
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M15 6H3v2h12V6Zm0 4H3v2h12v-2ZM3 16h8v-2H3v2ZM17 6v8.18A3 3 0 1 0 19 17V8h3V6h-5Z"/></svg>
+        <span>Songs on this phone</span>
+      </button>
+      <div class="library" id="library" hidden>
+        <input type="search" id="search" placeholder="Search songs or artists" aria-label="Search songs or artists" autocomplete="off">
+        <ul class="songs" id="songs"></ul>
+        <p class="hint" id="songs-note"></p>
+      </div>
       <input type="file" id="file-input" accept="audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus" hidden>
       <p class="song" id="song" hidden><span id="song-name"></span><span class="quiet" id="song-length"></span></p>
       <p class="status" id="status" role="status" aria-live="polite"></p>

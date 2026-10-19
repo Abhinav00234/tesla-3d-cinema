@@ -15,7 +15,7 @@ You hear it all from the seat you pick, with the delay and loudness that distanc
 
 ## Using it
 
-1. Tap **Choose a song** and pick an MP3, M4A, WAV, FLAC or OGG file.
+1. Tap **Songs on this phone** to list the music on your phone and SD card, and tap a song (search by title or artist). The first time, Android asks to allow access to your music. Or tap **Choose a song file** to pick any MP3, M4A, WAV, FLAC or OGG file.
 2. Pick the **Hall** (screening room, cinema or IMAX) and **Your seat** (front, middle or back row).
 3. Pick what you are **Listening on**:
    - **Headphones**: 3D sound placed all around you, also behind. Use this with headphones or earbuds.
@@ -27,7 +27,9 @@ Everything happens on the phone. Songs are not uploaded anywhere and the app nee
 
 ## Getting the app
 
-The APK is built by GitHub Actions on every change to this folder: open the **Actions** tab, pick the latest **Cinema Sound APK** run and download `cinema-sound-apk`. Unzip it and open `app-debug.apk` on the phone (Android 8 or newer). Android asks you to allow installing apps from your browser or file manager the first time.
+**[Download CinemaSound.apk](https://github.com/Abhinav00234/tesla-3d-cinema/releases/download/cinema-sound/CinemaSound.apk)** and open it on your phone (Android 8 or newer). Android asks you to allow installing apps from your browser or file manager the first time.
+
+GitHub Actions builds the APK on every change to this folder and puts the newest one on that link. Each build is signed with the same key (`android/cinema-sound.keystore`), so a new APK installs as an update over the old one.
 
 To build it yourself you need JDK 17 and the Android SDK (Android Studio has both):
 
@@ -40,6 +42,6 @@ cd cinema-sound/android
 ## How it is built
 
 - `web/` is the whole app: `js/engine.js` is the sound engine (Web Audio API), `js/app.js` the screen. Open `web/index.html` in a desktop browser to try it; saving then downloads the file.
-- `android/` is a small Java app that shows `web/` in a WebView, opens the Android file picker and saves converted songs through MediaStore. It uses no libraries beyond Android itself.
+- `android/` is a small Java app that shows `web/` in a WebView, lists the phone's songs from the Android music library, opens the file picker and saves converted songs through MediaStore. It uses no libraries beyond Android itself.
 - The preview and the converted file go through the same sound graph, so what you hear is what you save. Converting renders the song faster than real time with an `OfflineAudioContext` and evens the level out to a peak of -1 dB.
 - A 5-minute song takes about 50 MB as WAV. Very long tracks (over 15 minutes) may run out of memory on older phones.
