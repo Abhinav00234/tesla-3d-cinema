@@ -51,10 +51,16 @@
     document.querySelectorAll('input[type=range][data-setting]').forEach((r) => {
       r.value = settings[r.dataset.setting];
     });
-    $('output-hint').textContent = settings.output === 'car'
+    $('style-hint').textContent = settings.style === 'theatre'
+      ? 'Like a real cinema: surround speakers all along the walls, a deeper subwoofer, a short natural echo and the softer treble cinemas are tuned to.'
+      : 'Exactly the sound of the 3D Cinema app.';
+    $('output-hint').textContent = settings.output === 'surround51'
+      ? 'Saves a 6-channel (5.1) file for a home theatre, or a player that plays 5.1 such as VLC or Kodi. '
+        + 'The preview here plays it folded to stereo. 5.1 files are three times as large: about 150 MB for 5 minutes.'
+      : settings.output === 'car'
       ? 'The surround speakers are mixed in so the car\'s own sound system can send them to its rear speakers. '
         + 'Turn on the car\'s surround setting if it has one (on a Tesla: Immersive Sound, in the audio settings).'
-      : 'Exactly what the 3D Cinema plays. Its 3D sound is made for headphones: through car speakers it doesn\'t reach the rear speakers, so use Car speakers there.';
+      : '3D sound placed all around you, as the 3D Cinema plays it. Made for headphones: through car speakers it doesn\'t reach the rear speakers, so use Car speakers there.';
   }
 
   document.querySelectorAll('.seg[data-setting]').forEach((seg) => {
@@ -128,8 +134,8 @@
       $('song-length').textContent = clock(buffer.duration);
       $('song').hidden = false;
       $('pick-label').textContent = 'Choose another song file';
-      setStatus($('status'), buffer.duration > 15 * 60
-        ? 'This is a long track. Converting it needs a lot of memory and may fail on older phones.'
+      setStatus($('status'), buffer.duration > 20 * 60
+        ? 'This is a long track. It needs a lot of memory and may fail on older phones.'
         : '');
     } catch (err) {
       if (ticket !== opening) return;
@@ -326,17 +332,17 @@
     $('progress').hidden = false;
     $('bar').style.width = '0%';
     setStatus($('save-status'), 'Converting…');
-    const fileName = song.name + ' (Cinema).wav';
+    const fileName = song.name + ' (' + (settings.style === 'theatre' ? 'Movie theatre' : 'Cinema')
+      + (settings.output === 'surround51' ? ' 5.1' : '') + ').wav';
+    const file = saver(fileName);
     try {
-      const out = await E.render(song.buffer, settings, (p) => {
-        $('bar').style.width = Math.round(p * 90) + '%';
+      await E.render(song.buffer, settings, file.write, (p) => {
+        $('bar').style.width = Math.round(p * 100) + '%';
       });
-      setStatus($('save-status'), 'Saving…');
-      const wav = E.toWav(out);
-      const where = await save(fileName, wav, (p) => { $('bar').style.width = Math.round(90 + p * 10) + '%'; });
-      $('bar').style.width = '100%';
+      const where = file.finish();
       setStatus($('save-status'), 'Saved "' + fileName + '"' + (where ? ' to ' + where : '') + '.');
     } catch (err) {
+      file.cancel();
       setStatus($('save-status'), 'Converting failed: ' + (err && err.message ? err.message : err), true);
     } finally {
       busy = false;
@@ -350,42 +356,56 @@
     if (window.CinemaAndroid) window.CinemaAndroid.keepAwake(on);
   }
 
-  // Resolves to a description of where the file went
-  async function save(fileName, bytes, onProgress) {
+  // The file being saved: write(bytes) for each piece, then finish(),
+  // which returns where it went. In the Android app it goes to the
+  // phone's Music folder; in a browser it is downloaded.
+  function saver(fileName) {
     const android = window.CinemaAndroid;
     if (!android) {
-      const url = URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      return 'your downloads';
+      const parts = [];
+      return {
+        write(bytes) { parts.push(bytes); },
+        finish() {
+          const url = URL.createObjectURL(new Blob(parts, { type: 'audio/wav' }));
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+          return 'your downloads';
+        },
+        cancel() { parts.length = 0; },
+      };
     }
 
-    // The bridge only takes strings, so the file is sent in base64 pieces
-    if (!android.begin(fileName)) throw new Error('could not create the file');
-    const CHUNK = 384 * 1024; // a multiple of 3, so pieces join cleanly
-    try {
-      for (let at = 0; at < bytes.length; at += CHUNK) {
-        const part = bytes.subarray(at, Math.min(bytes.length, at + CHUNK));
-        let s = '';
-        for (let i = 0; i < part.length; i += 0x8000) {
-          s += String.fromCharCode.apply(null, part.subarray(i, i + 0x8000));
+    // The bridge only takes strings, so each piece is sent in base64
+    let open = false;
+    return {
+      async write(bytes) {
+        if (!open) {
+          if (!android.begin(fileName)) throw new Error('could not create the file');
+          open = true;
         }
-        if (!android.append(btoa(s))) throw new Error('could not write the file');
-        onProgress(Math.min(1, (at + CHUNK) / bytes.length));
-        await new Promise((r) => setTimeout(r, 0)); // let the page draw
-      }
-    } catch (err) {
-      android.cancel();
-      throw err;
-    }
-    const where = android.finish();
-    if (!where) throw new Error('could not finish the file');
-    return where;
+        const CHUNK = 384 * 1024;
+        for (let at = 0; at < bytes.length; at += CHUNK) {
+          const part = bytes.subarray(at, Math.min(bytes.length, at + CHUNK));
+          let s = '';
+          for (let i = 0; i < part.length; i += 0x8000) {
+            s += String.fromCharCode.apply(null, part.subarray(i, i + 0x8000));
+          }
+          if (!android.append(btoa(s))) throw new Error('could not write the file');
+          await new Promise((r) => setTimeout(r, 0)); // let the page draw
+        }
+      },
+      finish() {
+        const where = android.finish();
+        if (!where) throw new Error('could not finish the file');
+        return where;
+      },
+      cancel() { if (open) android.cancel(); },
+    };
   }
 
   showSettings();

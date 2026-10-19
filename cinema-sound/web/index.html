@@ -35,6 +35,15 @@
 
     <section class="card" id="settings" aria-label="Cinema settings">
       <div class="field">
+        <span class="label" id="style-label">Sound</span>
+        <div class="seg" role="radiogroup" aria-labelledby="style-label" data-setting="style">
+          <button type="button" role="radio" data-value="cinema3d">3D Cinema</button>
+          <button type="button" role="radio" data-value="theatre">Movie theatre</button>
+        </div>
+        <p class="hint" id="style-hint"></p>
+      </div>
+
+      <div class="field">
         <span class="label" id="seat-label">Your seat</span>
         <div class="seg" role="radiogroup" aria-labelledby="seat-label" data-setting="seat">
           <button type="button" role="radio" data-value="front">Front row</button>
@@ -49,6 +58,7 @@
         <div class="seg" role="radiogroup" aria-labelledby="output-label" data-setting="output">
           <button type="button" role="radio" data-value="cinema">Headphones</button>
           <button type="button" role="radio" data-value="car">Car speakers</button>
+          <button type="button" role="radio" data-value="surround51">5.1 system</button>
         </div>
         <p class="hint" id="output-hint"></p>
       </div>
@@ -65,7 +75,7 @@
         <span class="label">Hall echo</span>
         <input type="range" min="0" max="1" step="0.05" data-setting="echo">
       </label>
-      <p class="hint">With every slider in the middle, the song sounds exactly as in the 3D Cinema. <button class="link" id="reset-btn" type="button">Back to the middle</button></p>
+      <p class="hint">The middle of each slider is the cinema's own level. <button class="link" id="reset-btn" type="button">Back to the middle</button></p>
     </section>
 
     <section class="card" id="preview" aria-label="Preview">
